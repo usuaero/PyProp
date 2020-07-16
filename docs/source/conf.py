@@ -17,12 +17,12 @@ sys.path.insert(0, os.path.abspath('../'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'MachUpX'
+project = 'PyProp'
 copyright = '2020, Cory Goates, Doug Hunsaker'
 author = 'Cory Goates, Doug Hunsaker'
 
 # The full version, including alpha/beta/rc tags
-release = '2.4.0'
+release = '0.0.1'
 
 
 # -- General configuration ---------------------------------------------------

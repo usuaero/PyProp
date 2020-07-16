@@ -1,5 +1,5 @@
-MachUpX
-=======
+PyProp
+======
 
 .. toctree::
    :maxdepth: 2
@@ -12,6 +12,5 @@ MachUpX
    scene_object
    common_issues
    error_handling
-   version_1_to_version_2
    support
    developer_notes
