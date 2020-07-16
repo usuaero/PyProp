@@ -6,12 +6,13 @@ import sys
 
 setup(name = 'PyProp',
     version = '0.0.1',
-    description = "PyProp: The ultimate electric propulsion modelling and optimization module.",
+    description = "PyProp: The ultimate electric propulsion modeling and optimization module.",
     url = 'https://github.com/usuaero/PyProp',
     author = 'usuaero',
     author_email = 'doug.hunsaker@usu.edu',
     install_requires = ['numpy>=1.18', 'scipy>=1.4', 'pytest', 'matplotlib', 'numpy-stl', 'airfoil_db==1.4.1'],
     python_requires ='>=3.6.0',
+    include_package_data = True,
     license = 'MIT',
     packages = ['pyprop'],
     zip_safe = False)

@@ -1,0 +1,22 @@
+# Propeller Constant List - Do Not Edit!
+Aeronaut Fixed Average|1.06
+Aeronaut Fixed P/D = 0.0 to 0.8|0.99
+Aeronaut Fixed P/D = 0.8+|1.24
+Aeronaut Folder|1.06
+APC Electric Average|1.17
+APC Electric P/D = 0.0 to 0.5|0.98
+APC Electric P/D = 0.5 to 1.0|1.16
+APC Electric P/D = 1.0+|1.47
+APC Slowfly Average|1.69
+APC Slowfly P/D = 0.0 to 0.5|1.62
+APC Slowfly P/D = 0.5+|1.79
+APC|1.11
+Generic|1.31
+GWS HD Series|1.07
+GWS RS Series|1.68
+Master Airscrew Wood Electric|1.58
+Master Airscrew|1.31
+Rev Up|-1
+Thin Carbon Folder|1.18
+Top Flite Power Point|1.31
+Zinger|1.31
