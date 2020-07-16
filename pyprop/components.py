@@ -1,16 +1,19 @@
-import numpy as np
-import copy
-from scipy import integrate
-import scipy.interpolate as interp
 import os
-from os import path
+import copy
+
+import scipy.interpolate as interp
+import numpy as np
 import matplotlib.pyplot as plt
 import polyFit as fit
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from std_atmos import *
 import sqlite3 as sql
+import matplotlib.pyplot as plt
+
+from scipy import integrate
+from mpl_toolkits.mplot3d import Axes3D
+from os import path
 from random import randint
+
+from .std_atmos import *
 
 #Classes in this file are defined such that their information is retrieved from the database (a database cursor must be given).
 #If the component's exact name or id are given, that component w_ill be selected. If the manufacturer is given,
