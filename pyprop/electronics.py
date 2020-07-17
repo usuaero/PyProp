@@ -19,13 +19,13 @@ class Battery(DatabaseComponent):
         Parameters
         ----------
         type : str, optional
-            Can be "database" or "user_defined". Defaults to "user_defined".
+            Can be "database" or "user_defined". Defaults to "database".
 
         """
         super().__init__()
 
         # Get type
-        self._type = kwargs.get("type", "user_defined")
+        self._type = kwargs.get("type", "database")
 
         if self._type == "database":
             
