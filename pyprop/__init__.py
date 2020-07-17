@@ -1,3 +1,5 @@
 """Initializes PyProp module"""
 from .optimizer import Optimizer
-from .components import Battery, ESC, Propeller, Motor, PropulsionUnit
+from .propellers import DatabaseProp, BladeElementProp
+from .electronics import Battery, ESC, Motor
+from .propulsion_unit import PropulsionUnit

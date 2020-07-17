@@ -13,7 +13,9 @@ import matplotlib.pyplot as plt
 import sqlite3 as sql
 import numpy as np
 
-from .components import Battery, Motor, ESC, PropulsionUnit, Propeller
+from .electronics import Battery, Motor, ESC
+from .propulsion_unit import PropulsionUnit
+from .propellers import DatabaseProp, BladeElementProp
 
 class Optimizer:
     """A class for optimizing propulsion units. Will act as a wrapper for lower-level classes
@@ -101,7 +103,7 @@ class Optimizer:
         # Get parameters
         N_proc_max = input_dict["computation"].get("processes", 8)
         N_units = input_dict["computation"]["units"]
-        v_req = input_dict["condition"]["airspeed"]
+        V_req = input_dict["condition"]["airspeed"]
         h = input_dict["condition"]["airspeed"]
         W_frame = input_dict["aircraft"]["emptyWeight"]
 
@@ -109,20 +111,20 @@ class Optimizer:
         if input_dict["goal"]["thrust"] is 0:
             if input_dict["goal"]["thrustToWeightRatio"] is 0:
                 raise RuntimeError("No goal specified!")
-            optimizeForRatio = True
-            thrustParam = input_dict["goal"]["thrustToWeightRatio"]
-            R_tw_req = thrustParam
+            optimize_thrust_to_weight = True
+            thrust_param = input_dict["goal"]["thrustToWeightRatio"]
+            R_tw_req = thrust_param
         else:
-            optimizeForRatio = False
-            thrustParam = input_dict["goal"]["thrust"]
-            T_req = thrustParam
+            optimize_thrust_to_weight = False
+            thrust_param = input_dict["goal"]["thrust"]
+            T_req = thrust_param
 
         # Print out optimization settings
-        print("Flight conditions: airspeed",v_req,"ft/comp, altitude",h,"ft, airframe weight",W_frame,"lbs")
-        if optimizeForRatio:
-            print("Optimizing for a thrust to weight ratio of",thrustParam)
+        print("Flight conditions:\nAirspeed {0} ft/s, Altitude {1} ft, Airframe weight: {2} lbs".format(V_req, h, W_frame))
+        if optimize_thrust_to_weight:
+            print("Optimizing for a thrust to weight ratio of",thrust_param)
         else:
-            print("Optimizing for a required thrust of",thrustParam)
+            print("Optimizing for a required thrust of",thrust_param)
 
         # Determine constraints
         names = []
@@ -151,64 +153,101 @@ class Optimizer:
                 print("Not constrained.")
 
         # Distribute work
-        with mp.Pool(processes=N_proc_max,initializer=setGlobalCursor,initargs=()) as pool:
-            args = [(v_req,thrustParam,h,optimizeForRatio,W_frame,names,manufacturers) for i in range(N_units)]
-            data = pool.map(self._get_random_unit,args)
-        sql.connect(self._db_file).close()
+        with mp.Pool(processes=N_proc_max) as pool:
+            args = [(V_req, thrust_param, h, optimize_thrust_to_weight, W_frame, names, manufacturers) for i in range(N_units)]
+            data = pool.map(self._get_random_unit, args)
 
         # Package results
-        t_flight,throttles,units = map(list,zip(*data))
+        t_flight, throttles, units = map(list,zip(*data))
         t_flight = np.asarray(t_flight)
         throttles = np.asarray(throttles)
         units = np.asarray(units)
 
         # Determine optimum
-        t_max = max(t_flight)
-        bestUnit = np.asscalar(units[np.where(t_flight==t_max)])
-        throttle_at_max = np.asscalar(throttles[np.where(t_flight==t_max)])
-        if optimizeForRatio:
-            T_req = thrustParam*(bestUnit.GetWeight()+W_frame)
+        max_ind = np.argmax(t_flight)
+        t_max = t_flight[max_ind]
+        best_unit = units[max_ind]
+        throttle_at_max = throttles[max_ind]
+        if optimize_thrust_to_weight:
+            T_req = thrust_param*(best_unit.get_weight()+W_frame)
         else:
-            T_req = thrustParam
+            T_req = thrust_param
 
         # Print information to the terminal
-        print("Maximum flight time found:",t_max,"min")
-        bestUnit.printInfo()
-        print("Throttle setting for max flight:",bestUnit.CalcCruiseThrottle(v_req,T_req))
-        print("Current draw:",bestUnit.I_motor,"A")
+        print("Maximum flight time found: {0} min".format(t_max))
+        print(best_unit)
+        print("Throttle setting for max flight: {0}".format(best_unit.calc_cruise_throttle(V_req, T_req)))
+        print("Current draw: {0} A".format(best_unit.I_motor))
+
+        # Define picker
+        def on_pick(event):
+            # Handles when the user picks a plotted point in the design space. Highlights that point and plots that unit's thrust curves.
+
+            # Get plot info
+            artist = event.artist
+            fig = plt.figure(plt.get_fignums()[0])
+            ax = fig.axes
+
+            # Determine index
+            ind = int(event.ind[0])
+            selected_unit = units[ind]
+
+            # Alter title
+            fig.suptitle("SELECTED Prop: "+str(selected_unit.prop.name)+"  Motor: "+str(selected_unit.motor.name)+"  Battery: "+str(selected_unit.batt.name)+"  ESC: "+str(selected_unit.esc.name))
+
+            # Highlight points in all plots
+            ax[0].plot(selected_unit.prop.diameter,t_flight[ind],'o')
+            ax[1].plot(selected_unit.prop.pitch,t_flight[ind],'o')
+            ax[2].plot(selected_unit.motor.Kv,t_flight[ind],'o')
+            ax[3].plot(selected_unit.batt.V0,t_flight[ind],'o')
+            ax[4].plot(selected_unit.batt.cell_cap,t_flight[ind],'o')
+            ax[5].plot(selected_unit.get_weight()+W_frame,t_flight[ind],'o')
+            ax[6].plot(throttles[ind],t_flight[ind],'o')
+
+            # Print out info
+            print(selected_unit)
+            print("Flight Time:",t_flight[ind],"min")
+            if optimize_thrust_to_weight:
+                print("    at {:4.2f}% throttle".format(selected_unit.calc_cruise_throttle(V_req,(selected_unit.get_weight()+W_frame)*R_tw_req)*100))
+            else:
+                print("    at {:4.2f}% throttle".format(selected_unit.calc_cruise_throttle(V_req,T_req)*100))
+
+            # Plot performance curves
+            selected_unit.plot_thrust_curves(0,V_req*2+10,11,51)
+            selected_unit.prop.PlotCoefs()
 
         # Plot design space
         plt.ion()
         fig,((ax1,ax2,ax3,ax4),(ax5,ax6,ax7,ax8)) = plt.subplots(nrows=2,ncols=4)
-        fig.suptitle("OPTIMUM Prop: "+str(bestUnit.prop.name)+"  Motor: "+str(bestUnit.motor.name)+"  Battery: "+str(bestUnit.batt.name)+"  ESC: "+str(bestUnit.esc.name))
+        fig.suptitle("OPTIMUM Prop: "+str(best_unit.prop.name)+"  Motor: "+str(best_unit.motor.name)+"  Battery: "+str(best_unit.batt.name)+"  ESC: "+str(best_unit.esc.name))
 
         ax1.plot([units[i].prop.diameter for i in range(N_units)],t_flight,'b*',picker=3)
-        ax1.plot(bestUnit.prop.diameter,t_max,'r*')
+        ax1.plot(best_unit.prop.diameter,t_max,'r*')
         ax1.set_xlabel("Prop Diameter [in]")
         ax1.set_ylabel("Flight Time [min]")
 
         ax2.plot([units[i].prop.pitch for i in range(N_units)],t_flight,'b*',picker=3)
-        ax2.plot(bestUnit.prop.pitch,t_max,'r*')
+        ax2.plot(best_unit.prop.pitch,t_max,'r*')
         ax2.set_xlabel("Prop Pitch [in]")
         ax2.set_ylabel("Flight Time [min]")
 
         ax3.plot([units[i].motor.Kv for i in range(N_units)],t_flight,'b*',picker=3)
-        ax3.plot(bestUnit.motor.Kv,t_max,'r*')
+        ax3.plot(best_unit.motor.Kv,t_max,'r*')
         ax3.set_xlabel("Motor Kv [rpm/V]")
         ax3.set_ylabel("Flight Time [min]")
 
         ax4.plot([units[i].batt.V0 for i in range(N_units)],t_flight,'b*',picker=3)
-        ax4.plot(bestUnit.batt.V0,t_max,'r*')
+        ax4.plot(best_unit.batt.V0,t_max,'r*')
         ax4.set_xlabel("Battery Voltage [V]")
         ax4.set_ylabel("Flight Time [min]")
 
-        ax5.plot([units[i].batt.cellCap for i in range(N_units)],t_flight,'b*',picker=3)
-        ax5.plot(bestUnit.batt.cellCap,t_max,'r*')
+        ax5.plot([units[i].batt.cell_cap for i in range(N_units)],t_flight,'b*',picker=3)
+        ax5.plot(best_unit.batt.cell_cap,t_max,'r*')
         ax5.set_xlabel("Cell Capacity [mAh]")
         ax5.set_ylabel("Flight Time [min]")
 
-        ax6.plot([units[i].GetWeight()+W_frame for i in range(N_units)],t_flight,'b*',picker=3)
-        ax6.plot(bestUnit.GetWeight()+W_frame,t_max,'r*')
+        ax6.plot([units[i].get_weight()+W_frame for i in range(N_units)],t_flight,'b*',picker=3)
+        ax6.plot(best_unit.get_weight()+W_frame,t_max,'r*')
         ax6.set_xlabel("Total Unit Weight [lb]")
         ax6.set_ylabel("Flight Time [min]")
 
@@ -221,78 +260,51 @@ class Optimizer:
         plt.show(block=True)
         plt.ioff()
 
-    #Selects a propultion unit and calculates its flight time.
-    def _get_random_unit(self, *args):
+    def _get_random_unit(self, args):
+        #Selects a propulsion unit and calculates its flight time.
 
-        v_req = args[0]
+        # Parse arguments
+        V_req = args[0]
         T = args[1]
         h = args[2]
-        optimizeForRatio = args[3]
+        optimize_thrust_to_weight = args[3]
         W_frame = args[4]
         names = args[5]
         manufacturers = args[6]
 
-        if optimizeForRatio:
+        # Determine thrust requirement
+        if optimize_thrust_to_weight:
             R_tw_req = T
         else:
             T_req = T
 
+        # Loop through random components until we get a valid one
         t_flight_curr = None
         while t_flight_curr is None or math.isnan(t_flight_curr):
 
             #Fetch prop data
-            prop = Propeller(dbcur,name=names[0],manufacturer=manufacturers[0])
+            prop = DatabaseProp(name=names[0], manufacturer=manufacturers[0])
 
             #Fetch motor data
-            motor = Motor(dbcur,name=names[1],manufacturer=manufacturers[1])
+            motor = Motor(name=names[1], manufacturer=manufacturers[1])
 
             #Fetch ESC data
-            esc = ESC(dbcur,name=names[2],manufacturer=manufacturers[2])
+            esc = ESC(name=names[2], manufacturer=manufacturers[2])
 
             #Fetch battery data
-            batt = Battery(dbcur,name=names[3],manufacturer=manufacturers[3])
+            batt = Battery(name=names[3], manufacturer=manufacturers[3])
 
             if batt.R == 0 and esc.R == 0 and motor.R == 0:
                 continue
 
             # Determine performance
-            currUnit = PropulsionUnit(prop,motor,batt,esc,h)
-            if optimizeForRatio:
-                T_req = (currUnit.GetWeight()+W_frame)*R_tw_req
+            curr_unit = PropulsionUnit(prop,motor,batt,esc,h)
+            if optimize_thrust_to_weight:
+                T_req = (curr_unit.get_weight()+W_frame)*R_tw_req
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                t_flight_curr = currUnit.CalcBattLife(v_req,T_req)
-                thr_curr = currUnit.CalcCruiseThrottle(v_req,T_req)
+                t_flight_curr = curr_unit.calc_batt_life(V_req,T_req)
+                thr_curr = curr_unit.calc_cruise_throttle(V_req,T_req)
 
         # Return params
-        return t_flight_curr, thr_curr, currUnit
-
-def on_pick(event):
-    #Defines what happens when the user picks a plotted point in the design space. Highlights that point and plots that unit's thrust curves.
-    artist = event.artist
-    fig = plt.figure(plt.get_fignums()[0])
-    ax = fig.axes
-    ind = int(event.ind[0])
-    selUnit = units[ind]
-    fig.suptitle("SELECTED Prop: "+str(selUnit.prop.name)+"  Motor: "+str(selUnit.motor.name)+"  Battery: "+str(selUnit.batt.name)+"  ESC: "+str(selUnit.esc.name))
-    ax[0].plot(selUnit.prop.diameter,t_flight[ind],'o')
-    ax[1].plot(selUnit.prop.pitch,t_flight[ind],'o')
-    ax[2].plot(selUnit.motor.Kv,t_flight[ind],'o')
-    ax[3].plot(selUnit.batt.V0,t_flight[ind],'o')
-    ax[4].plot(selUnit.batt.cellCap,t_flight[ind],'o')
-    ax[5].plot(selUnit.GetWeight()+W_frame,t_flight[ind],'o')
-    ax[6].plot(throttles[ind],t_flight[ind],'o')
-    selUnit.printInfo()
-    print("Flight Time:",t_flight[ind],"min")
-    if optimizeForRatio:
-        print("    at {:4.2f}% throttle".format(selUnit.CalcCruiseThrottle(v_req,(selUnit.GetWeight()+W_frame)*R_tw_req)*100))
-    else:
-        print("    at {:4.2f}% throttle".format(selUnit.CalcCruiseThrottle(v_req,T_req)*100))
-    selUnit.PlotThrustCurves(0,v_req*2+10,11,51)
-    selUnit.prop.PlotCoefs()
-
-def setGlobalCursor():
-    #Defines a global database cursor giving all processes a connection to the database.
-    global dbcur
-    dbcur = sql.connect(dbFile).cursor()
-    seed(datetime.time.microsecond)
+        return t_flight_curr, thr_curr, curr_unit

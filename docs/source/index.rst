@@ -8,8 +8,8 @@ PyProp
    introduction
    installation
    user_interface
-   creating_input_files
-   scene_object
+   optimizer_object
+   component_objects
    common_issues
    error_handling
    support
