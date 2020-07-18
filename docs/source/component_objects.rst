@@ -4,11 +4,7 @@ Component Classes
 The PyProp module contains multiple classes which can be used to model propulsion systems.
 
 .. automodule:: pyprop
-.. autoclass:: DatabasePropeller
-    :methods:
-
-.. automodule:: pyprop
-.. autoclass:: BladeElementPropeller
+.. autoclass:: Battery
     :methods:
 
 .. automodule:: pyprop
@@ -16,11 +12,15 @@ The PyProp module contains multiple classes which can be used to model propulsio
     :methods:
 
 .. automodule:: pyprop
-.. autoclass:: Battery
+.. autoclass:: ESC
     :methods:
 
 .. automodule:: pyprop
-.. autoclass:: ESC
+.. autoclass:: DatabasePropeller
+    :methods:
+
+.. automodule:: pyprop
+.. autoclass:: BladeElementPropeller
     :methods:
 
 .. automodule:: pyprop
