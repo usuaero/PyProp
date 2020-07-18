@@ -8,7 +8,6 @@ import numpy as np
 class DatabaseComponent:
     """A component defined in the database."""
 
-
     def __init__(self):
 
         # Get database file

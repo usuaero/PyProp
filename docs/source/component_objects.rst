@@ -5,24 +5,19 @@ The PyProp module contains multiple classes which can be used to model propulsio
 
 .. automodule:: pyprop
 .. autoclass:: Battery
-    :methods:
+    :members:
 
-.. automodule:: pyprop
 .. autoclass:: Motor
-    :methods:
+    :members:
 
-.. automodule:: pyprop
 .. autoclass:: ESC
-    :methods:
+    :members:
 
-.. automodule:: pyprop
-.. autoclass:: DatabasePropeller
-    :methods:
+.. autoclass:: DatabaseProp
+    :members:
 
-.. automodule:: pyprop
-.. autoclass:: BladeElementPropeller
-    :methods:
+.. autoclass:: BladeElementProp
+    :members:
 
-.. automodule:: pyprop
 .. autoclass:: PropulsionUnit
-    :methods:
+    :members:

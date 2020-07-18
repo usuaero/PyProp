@@ -9,7 +9,6 @@ from random import randint
 
 from .base_classes import DatabaseComponent
     
-#A class that defines a battery
 class Battery(DatabaseComponent):
     """Defines a battery.
 
