@@ -8,6 +8,7 @@ import sqlite3 as sql
 from random import randint
 
 from .base_classes import DatabaseComponent
+from .helpers import import_value
     
 class Battery(DatabaseComponent):
     """Defines a battery.
@@ -53,13 +54,20 @@ class Battery(DatabaseComponent):
         Nominal voltage of a *single cell* of the battery in Volts. Valid only
         for "user_defined" type.
 
+    num_cells : int
+        Number of *series* cells in the battery. Required for "user_defined" type.
+        Defaults to a random integer between 1 and 8 for the "database" type.
+
     weight : float
-        Weight of a *single cell* of the battery in ounces. Valid only for
+        Weight of a *single cell* of the battery. Valid only for
         "user_defined" type.
 
     I_max : float
         Maximum current draw of a *single cell* of the battery in Amps. Valid
         only for "user_defined" type.
+
+    units : str, optional
+        Unit system to use for this component. Can be "English" or "SI". Defaults to "English".
     """
 
     def __init__(self, **kwargs):
@@ -94,7 +102,7 @@ class Battery(DatabaseComponent):
             self.cell_cap = kwargs.get("capacity")
             self.cell_R = kwargs.get("resistance", 0.0)
             self.cell_V = kwargs.get("voltage")
-            self.cell_weight = kwargs.get("weight")
+            self.cell_weight = import_value("weight", kwargs, __unit_sys__, None)
             self.name = kwargs.get("name", "user_battery")
             self.manufacturer = kwargs.get("manufacturer", "user")
             self.I_max = kwargs.get("I_max")
@@ -118,30 +126,33 @@ class Battery(DatabaseComponent):
 class ESC(DatabaseComponent):
     """Defines an electronic speed controller (ESC).
 
-        Parameters
-        ----------
-        type : str, optional
-            Can be "database" or "user_defined". For more details on this, see
-            the docstrings for the Battery object. Defaults to "database".
+    Parameters
+    ----------
+    type : str, optional
+        Can be "database" or "user_defined". For more details on this, see
+        the docstrings for the Battery object. Defaults to "database".
 
-        name : str, optional
-            Name of the ESC to be used.
+    name : str, optional
+        Name of the ESC to be used.
 
-        manufacturer : str, optional
-            Manufacturer of the ESC.
+    manufacturer : str, optional
+        Manufacturer of the ESC.
 
-        dbid : int, optional
-            ID of the component in the database. Valid only for "database" type.
+    dbid : int, optional
+        ID of the component in the database. Valid only for "database" type.
 
-        resistance : float, optional
-            Equivalent resistance of the ESC in Ohms. Valid only for "user_defined"
-            type. Defaults to 0.0.
-        
-        I_max : float
-            Maximum current that can be sourced by the ESC in amps.
+    resistance : float, optional
+        Equivalent resistance of the ESC in Ohms. Valid only for "user_defined"
+        type. Defaults to 0.0.
+    
+    I_max : float
+        Maximum current that can be sourced by the ESC in amps.
 
-        weight : float
-            Weight of the ESC in ounces. Valid only for "user_defined" type.
+    weight : float
+        Weight of the ESC in ounces. Valid only for "user_defined" type.
+
+    units : str, optional
+        Unit system to use for this component. Can be "English" or "SI". Defaults to "English".
     """
 
     def __init__(self, **kwargs):
@@ -183,38 +194,41 @@ class ESC(DatabaseComponent):
 class Motor(DatabaseComponent):
     """Defines an electric motor.
 
-        Parameters
-        ----------
-        type : str, optional
-            Can be "database" or "user_defined". For more details on this, see
-            the docstrings for the Battery object. Defaults to "database".
+    Parameters
+    ----------
+    type : str, optional
+        Can be "database" or "user_defined". For more details on this, see
+        the docstrings for the Battery object. Defaults to "database".
 
-        name : str, optional
-            Name of the motor to be used.
+    name : str, optional
+        Name of the motor to be used.
 
-        manufacturer : str, optional
-            Manufacturer of the motor.
+    manufacturer : str, optional
+        Manufacturer of the motor.
 
-        dbid : int, optional
-            ID of the component in the database. Valid only for "database" type.
+    dbid : int, optional
+        ID of the component in the database. Valid only for "database" type.
 
-        Kv : float, optional
-            Kv rating (sometimes called the speed constant) of the motor.
+    Kv : float, optional
+        Kv rating (sometimes called the speed constant) of the motor.
 
-        resistance : float, optional
-            DC resistance of the motor in Ohms. Valid only for "user_defined"
-            type. Defaults to 0.0.
-        
-        I_no_load : float
-            No-load current of the motor in amps. Valid only for "user_defined".
+    resistance : float, optional
+        DC resistance of the motor in Ohms. Valid only for "user_defined"
+        type. Defaults to 0.0.
+    
+    I_no_load : float
+        No-load current of the motor in amps. Valid only for "user_defined".
 
-        gear_ratio : float, optional
-            Gear ratio of the motor. A valud greater than unity will correspond
-            to the output shaft of the motor turning slower than the motor itself.
-            Defaults to 1.0.
+    gear_ratio : float, optional
+        Gear ratio of the motor. A valud greater than unity will correspond
+        to the output shaft of the motor turning slower than the motor itself.
+        Defaults to 1.0.
 
-        weight : float
-            Weight of the motor in ounces. Valid only for "user_defined" type.
+    weight : float
+        Weight of the motor in ounces. Valid only for "user_defined" type.
+
+    units : str, optional
+        Unit system to use for this component. Can be "English" or "SI". Defaults to "English".
     """
 
     def __init__(self, **kwargs):

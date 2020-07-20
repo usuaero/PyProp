@@ -38,6 +38,9 @@ input_dict = {
     }
 }
 
+# Initialize
+pyprop.initialize_units(unit_sys="SI")
+batt = pyprop.Battery(type="user_defined", cell_weight=[50, "N"])
 
 # Load
 opter = pyprop.Optimizer()

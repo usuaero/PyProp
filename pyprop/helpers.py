@@ -7,6 +7,21 @@ import json
 import numpy as np
 import math as m
 
+def initialize_units(unit_sys="English"):
+    """Sets the unit system to be used in modeling.
+
+    Parameters
+    ----------
+    unit_sys : str, optional
+        Can be "English" or "SI". Defaults to "English".
+    """
+    #global __unit_sys__
+    if pyprop.__unit_sys__ is None:
+        pyprop.__unit_sys__ = unit_sys
+    else:
+        raise RuntimeError("The unit system cannot be initialized more than once.")
+
+
 def check_filepath(input_filename, correct_ext):
     # Check correct file extension and that file exists
     if correct_ext not in input_filename:
@@ -21,47 +36,93 @@ def convert_units(in_value, units, system):
         return in_value
 
     to_english_default = {
+        # Length
         "ft" : 1.0,
         "in" : 0.083333333,
         "m" : 3.28084,
         "cm" : 0.0328084,
+        # Velocity
         "ft/s" : 1.0,
         "m/s" : 3.28084,
         "mph" : 1.466666666,
         "kph" : 0.9113444,
         "kn" : 1.687811,
+        # Area
         "ft^2" : 1.0,
         "m^2" : 10.76391,
+        # Density
         "slug/ft^3" : 1.0,
         "kg/m^3" : 0.0019403203,
+        # Force
         "lbf" : 1.0,
         "N" : 0.22480894244319,
+        "oz" : 0.0625,
+        # Angular deflection
         "deg" : 1.0,
         "rad" : 57.29578,
-        "deg/s" : 0.01745329,
-        "rad/s" : 1.0
+        # Angular rate
+        "rpm" : 1.0,
+        "deg/s" : 0.16666666666666666,
+        "rad/s" : 9.549296586,
+        # Torque
+        "ft lbf" : 1.0,
+        "Nm" : 0.73756214927727,
+        # Power
+        "lbf ft/s" : 1.0,
+        "W" : 0.7375621494575464,
+        "hp" : 0.00181818181818181818,
+        # Mass
+        "slug" : 1.0,
+        "lbm" : 0.03105590062111801,
+        "kg" : 0.06852177,
+        "g" : 0.00006852177,
+        # Power to weight ratio
+        "W/lbf" : 0.7375621494575464
     }
 
     to_si_default = {
+        # Length
         "ft" : 0.3048,
         "in" : 0.0254,
         "m" : 1.0,
         "cm" : 0.01,
+        # Velocity
         "ft/s" : 0.3048,
         "m/s" : 1.0,
         "mph" : 0.44704,
         "kph" : 0.277777777,
         "kn" : 0.514444444,
+        # Area
         "ft^2" : 0.09290304,
         "m^2" : 1.0,
+        # Density
         "slug/ft^3" : 515.378819,
         "kg/m^3" : 1.0,
+        # Force
         "lbf" : 4.4482216,
         "N" : 1.0,
+        "oz" : 0.27801385,
+        # Angular deflection
         "deg" : 1.0,
         "rad" : 57.29578,
-        "deg/s" : 0.01745329,
-        "rad/s" : 1.0
+        # Angular rate
+        "rpm" : 1.0,
+        "deg/s" : 0.16666666666666666,
+        "rad/s" : 9.549296586,
+        # Torque
+        "ft lbf" : 1.355817948331392,
+        "Nm" : 1.0,
+        # Power
+        "lbf ft/s" : 1.355817948,
+        "W" : 1.0,
+        "hp" : 745.6999,
+        # Mass
+        "slug" : 14.5939,
+        "lbm" : 0.4535924,
+        "kg" : 1.0,
+        "g" : 0.001,
+        # Power to weight ratio
+        "W/lbf" : 1.355817948331392
     }
     try:
         if system == "English":
@@ -70,6 +131,7 @@ def convert_units(in_value, units, system):
             return in_value*to_si_default[units.strip(' \t\r\n')]
     except KeyError:
         raise IOError("Improper units specified; {0} is not an allowable unit definition.".format(units))
+
 
 def to_rpm(rads):
     #Converts rads per second to rpms
