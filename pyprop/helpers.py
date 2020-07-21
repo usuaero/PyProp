@@ -7,20 +7,6 @@ import json
 import numpy as np
 import math as m
 
-def initialize_units(unit_sys="English"):
-    """Sets the unit system to be used in modeling.
-
-    Parameters
-    ----------
-    unit_sys : str, optional
-        Can be "English" or "SI". Defaults to "English".
-    """
-    #global __unit_sys__
-    if pyprop.__unit_sys__ is None:
-        pyprop.__unit_sys__ = unit_sys
-    else:
-        raise RuntimeError("The unit system cannot be initialized more than once.")
-
 
 def check_filepath(input_filename, correct_ext):
     # Check correct file extension and that file exists

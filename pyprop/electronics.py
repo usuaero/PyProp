@@ -59,7 +59,7 @@ class Battery(DatabaseComponent):
         Defaults to a random integer between 1 and 8 for the "database" type.
 
     weight : float
-        Weight of a *single cell* of the battery. Valid only for
+        Weight of a *single cell* of the battery in ounces. Valid only for
         "user_defined" type.
 
     I_max : float
@@ -102,7 +102,7 @@ class Battery(DatabaseComponent):
             self.cell_cap = kwargs.get("capacity")
             self.cell_R = kwargs.get("resistance", 0.0)
             self.cell_V = kwargs.get("voltage")
-            self.cell_weight = import_value("weight", kwargs, __unit_sys__, None)
+            self.cell_weight = kwargs.get("weight")
             self.name = kwargs.get("name", "user_battery")
             self.manufacturer = kwargs.get("manufacturer", "user")
             self.I_max = kwargs.get("I_max")

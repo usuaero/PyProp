@@ -15,7 +15,7 @@ import numpy as np
 
 from .electronics import Battery, Motor, ESC
 from .propulsion_unit import PropulsionUnit
-from .propellers import DatabaseProp, BladeElementProp
+from .propellers import DatabaseFitProp, DatabaseDataProp, BladeElementProp
 
 class Optimizer:
     """A class for optimizing propulsion units. Will act as a wrapper for lower-level classes
@@ -213,8 +213,8 @@ class Optimizer:
                 print("    at {:4.2f}% throttle".format(selected_unit.calc_cruise_throttle(V_req,T_req)*100))
 
             # Plot performance curves
-            selected_unit.plot_thrust_curves(0,V_req*2+10,11,51)
-            selected_unit.prop.PlotCoefs()
+            selected_unit.plot_thrust_curves([0.0, V_req*2.0+10.0], 11, 51)
+            selected_unit.prop.plot_coefs()
 
         # Plot design space
         plt.ion()
@@ -283,7 +283,7 @@ class Optimizer:
         while t_flight_curr is None or math.isnan(t_flight_curr):
 
             #Fetch prop data
-            prop = DatabaseProp(name=names[0], manufacturer=manufacturers[0])
+            prop = DatabaseFitProp(name=names[0], manufacturer=manufacturers[0])
 
             #Fetch motor data
             motor = Motor(name=names[1], manufacturer=manufacturers[1])

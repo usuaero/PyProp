@@ -3,7 +3,7 @@ import pyprop
 # Initialize random search params
 input_dict = {
     "computation" : {
-        "units" : 100000,
+        "units" : 100,
         "processes" : 8,
         "outlierStdDevs" : 10
     },
@@ -37,10 +37,6 @@ input_dict = {
         }
     }
 }
-
-# Initialize
-pyprop.initialize_units(unit_sys="SI")
-batt = pyprop.Battery(type="user_defined", cell_weight=[50, "N"])
 
 # Load
 opter = pyprop.Optimizer()
