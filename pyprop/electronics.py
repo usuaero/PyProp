@@ -65,9 +65,6 @@ class Battery(DatabaseComponent):
     I_max : float
         Maximum current draw of a *single cell* of the battery in Amps. Valid
         only for "user_defined" type.
-
-    units : str, optional
-        Unit system to use for this component. Can be "English" or "SI". Defaults to "English".
     """
 
     def __init__(self, **kwargs):
@@ -150,9 +147,6 @@ class ESC(DatabaseComponent):
 
     weight : float
         Weight of the ESC in ounces. Valid only for "user_defined" type.
-
-    units : str, optional
-        Unit system to use for this component. Can be "English" or "SI". Defaults to "English".
     """
 
     def __init__(self, **kwargs):
@@ -226,9 +220,6 @@ class Motor(DatabaseComponent):
 
     weight : float
         Weight of the motor in ounces. Valid only for "user_defined" type.
-
-    units : str, optional
-        Unit system to use for this component. Can be "English" or "SI". Defaults to "English".
     """
 
     def __init__(self, **kwargs):

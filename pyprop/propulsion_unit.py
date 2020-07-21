@@ -36,7 +36,7 @@ class PropulsionUnit:
         self.batt = battery
         self.esc = esc
 
-        _,_,_,self._rho = statee(altitude) # Converts kg/m^3 to slug/ft^3
+        _,_,_,self._rho = statee(altitude)
         
 
     def calc_motor_torque(self, throttle, revs):
@@ -58,11 +58,12 @@ class PropulsionUnit:
 
         # Determine motor current
         etaS = 1 - 0.078*(1 - throttle)
-        self.I_motor = (etaS*throttle*self.batt.V0 - (self.motor.Gr/self.motor.Kv)*revs)/(etaS*throttle*self.batt.R + self.esc.R + self.motor.R)
+        self.I_motor = (etaS*throttle*self.batt.V0-(self.motor.Gr/self.motor.Kv)*revs)/(etaS*throttle*self.batt.R+self.esc.R+self.motor.R)
 
         # Determine torque
         # Note: the 7.0432 constant converts units [(Nm/ftlb)(min/s)(rad/rev)]^-1
         return 7.0432*self.motor.Gr/self.motor.Kv * (self.I_motor - self.motor.I0)
+
     
     def calc_cruise_thrust(self, v_cruise, throttle):
         """Computes thrust produced at a given cruise speed and throttle setting.
@@ -83,13 +84,15 @@ class PropulsionUnit:
 
         # Check for zero inputs
         if v_cruise == 0.0 and throttle == 0.0:
+            self._w = 0.0
             return 0.0
 
         #Determine the shaft angular velocity at which the motor torque and propeller torque are matched
-        #Uses a secant method
-        err_max = 0.000001
-        err_aprx = 1 + err_max #So that it executes at least once
-        w_0 = 950 #An initial guess of the prop's angular velocity
+        err_max = 1e-10
+        err_aprx = 1.0
+
+        # Initial guess
+        w_0 = 950
         w_max = self.motor.Kv*self.batt.V0*throttle*(2*np.pi/60) # Theoretically the upper limit
         Cl_prop = self.prop.get_torque_coef(w_0, v_cruise)
         f_0 = self.calc_motor_torque(throttle, to_rpm(w_0))-Cl_prop*self._rho*(w_0/(2*np.pi))**2*(self.prop.diameter/12)**5
@@ -112,6 +115,10 @@ class PropulsionUnit:
             w_0 = w_1
             f_0 = f_1
             w_1 = w_2
+        else:
+            if iterations > 1000:
+                print(err_aprx)
+                raise RuntimeError("Propeller and motor torque could not be matched!")
     
         if False: #iterations >= 1000:
             w = np.linspace(0,30000,10000)
@@ -221,7 +228,7 @@ class PropulsionUnit:
         for i in range(n_vel):
             ax1.plot(thr, rpm[i])
         ax1.set_title("Prop Speed")
-        ax1.set_ylabel("Speed [rpms]")
+        ax1.set_ylabel("Speed [rpm]")
         ax1.set_xlabel("Throttle Setting")
         plt.show()
 
