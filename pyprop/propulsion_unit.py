@@ -291,13 +291,13 @@ class PropulsionUnit:
         """
 
         # Calculate required throttle
-        throttle = self.calc_cruise_throttle(v_cruise, T_req)
+        self.calc_cruise_throttle(v_cruise, T_req)
 
         # Check
         self._check_current_draw()
 
         # Determine the run time
-        run_time = (self.batt.cell_cap/1000.0)/self.I_motor*60.0 # Gives run time in minutes, assuming nominal cell capacity and constant battery votlage
+        run_time = (self.batt.capacity/1000.0)/self.I_motor*60.0 # Gives run time in minutes, assuming nominal cell capacity and constant battery votlage
         if run_time < 0:
             raise InvalidRuntimeError(run_time)
         return run_time

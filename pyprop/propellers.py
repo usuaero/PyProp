@@ -4,20 +4,23 @@ import os
 
 import numpy as np
 import matplotlib.pyplot as plt
-import sqlite3 as sql
 
 from .poly_fit import poly_func
 from .helpers import to_rpm
-from .base_classes import DatabaseComponent
 
-class DatabaseFitProp(DatabaseComponent):
-    """Defines a propeller by database fits."""
+class DatabaseFitProp:
+    """Defines a propeller by database fits.
+
+    Parameters
+    ----------
+    record : list
+        SQL database record defining this prop. This class should
+        be initialized using the pyprop.create_component_from_database()
+        function.
+
+    """
     
-    def __init__(self, **kwargs):
-        super().__init__()
-
-        # Get database record
-        record = self.get_database_record("prop", **kwargs)
+    def __init__(self, record):
 
         # Store params
         self.name = record[1]
@@ -174,12 +177,12 @@ class DatabaseFitProp(DatabaseComponent):
 class DatabaseDataProp:
     """Defines a propeller by tabulated data."""
 
-    def __init__(self):
-        pass
+    def __init__(self, **kwargs):
+        self.name = kwargs.get("name", "Generic Prop")
 
 
 class BladeElementProp:
     """Defines the performance of a propeller using blade element theory."""
 
-    def __init__(self):
-        pass
+    def __init__(self, **kwargs):
+        self.name = kwargs.get("name", "Generic Prop")

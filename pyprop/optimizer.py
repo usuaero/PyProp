@@ -17,6 +17,7 @@ from .electronics import Battery, Motor, ESC
 from .propulsion_unit import PropulsionUnit
 from .propellers import DatabaseFitProp, DatabaseDataProp, BladeElementProp
 from .exceptions import MaxCurrentExceededError, TorquesNotMatchedError, ThrottleNotFoundError, InvalidRuntimeError
+from .special_functions import create_component_from_database
 
 class Optimizer:
     """A class for optimizing propulsion units. Will act as a wrapper for lower-level classes
@@ -182,7 +183,7 @@ class Optimizer:
                 ax[1].plot(selected_unit.prop.pitch,t_flight[ind],'o')
                 ax[2].plot(selected_unit.motor.Kv,t_flight[ind],'o')
                 ax[3].plot(selected_unit.batt.V0,t_flight[ind],'o')
-                ax[4].plot(selected_unit.batt.cell_cap,t_flight[ind],'o')
+                ax[4].plot(selected_unit.batt.capacity,t_flight[ind],'o')
                 ax[5].plot(selected_unit.get_weight()+W_frame,t_flight[ind],'o')
                 ax[6].plot(throttles[ind],t_flight[ind],'o')
 
@@ -220,9 +221,9 @@ class Optimizer:
             ax4.set_xlabel("Battery Voltage [V]")
             ax4.set_ylabel("Flight Time [min]")
 
-            ax5.plot([units[i].batt.cell_cap for i in range(N_units)],t_flight,'b*',picker=3)
-            ax5.plot(best_unit.batt.cell_cap,t_max,'r*')
-            ax5.set_xlabel("Cell Capacity [mAh]")
+            ax5.plot([units[i].batt.capacity for i in range(N_units)],t_flight,'b*',picker=3)
+            ax5.plot(best_unit.batt.capacity,t_max,'r*')
+            ax5.set_xlabel("Battery Capacity [mAh]")
             ax5.set_ylabel("Flight Time [min]")
 
             ax6.plot([units[i].get_weight()+W_frame for i in range(N_units)],t_flight,'b*',picker=3)
@@ -282,16 +283,16 @@ class Optimizer:
         while t_flight_curr is None or math.isnan(t_flight_curr):
 
             #Fetch prop data
-            prop = DatabaseFitProp(name=names[0], manufacturer=manufacturers[0])
+            prop = create_component_from_database(component="fit_prop", name=names[0], manufacturer=manufacturers[0])
 
             #Fetch motor data
-            motor = Motor(name=names[1], manufacturer=manufacturers[1])
+            motor = create_component_from_database(component="motor", name=names[1], manufacturer=manufacturers[1])
 
             #Fetch ESC data
-            esc = ESC(name=names[2], manufacturer=manufacturers[2])
+            esc = create_component_from_database(component="ESC", name=names[2], manufacturer=manufacturers[2])
 
             #Fetch battery data
-            batt = Battery(name=names[3], manufacturer=manufacturers[3])
+            batt = create_component_from_database(component="battery", name=names[3], manufacturer=manufacturers[3])
 
             # Determine required thrust
             curr_unit = PropulsionUnit(prop, motor, batt, esc, h)
