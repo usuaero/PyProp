@@ -1,14 +1,146 @@
 """Classes for modelling propellers."""
 
 import os
+import json
 
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.interpolate as interp
+
+from abc import abstractmethod
 
 from .poly_fit import poly_func
-from .helpers import to_rpm
+from .helpers import to_rpm, to_rads
 
-class DatabaseFitProp:
+class BaseProp:
+    """Defines a propeller."""
+
+    def __init__(self):
+        self.name = None
+        self.manufacturer = None
+        self.diameter = None
+        self.pitch = None
+
+        
+    def __str__(self):
+        string = "Propeller: {0}".format(self.name)
+        string += "\n\tManufacturer: {0}".format(self.manufacturer)
+        string += "\n\tDiameter: {0} inches".format(self.diameter)
+        string += "\n\tPitch: {0} inches".format(self.pitch)
+        return string
+
+
+    def get_advance_ratio(self, w, V):
+        """Determines the advance ratio from angular velocity in rad/s and velocity in ft/s.
+
+        Parameters
+        ----------
+        w : float
+            Angular velocity in rad/s.
+
+        V : float
+            Velocity in ft/s.
+
+        Returns
+        -------
+        float
+            Advance ratio.
+        """
+        rps = to_rpm(w)/60.0
+        if abs(rps) < 1e-10:
+            return np.inf
+        else:
+            return 12.0*V/(rps*self.diameter)
+
+
+    def get_velocity(self, rpm, J):
+        """Determines the velocity from the rpm and advance ratio.
+
+        Parameters
+        ----------
+        rpm : float
+            Angular velocity in rpm.
+
+        J : float
+            Advance ratio.
+
+        Returns
+        -------
+        float
+            Velocity in ft/s.
+        """
+        rps = rpm/60.0
+        return J*rps*self.diameter/12.0
+
+
+    def plot_coefs(self, rpm_lims=[0.0, 35000.0], J_lims=[0.0, 1.4]):
+        """Plot thrust and torque coefficients as functions of rpm and advance ratio.
+
+        Parameters
+        ----------
+        rpm_lims : list, optional
+            Limits for plotting in rpm. Defaults to [0.0, 35000.0].
+
+        J_lims : list, optional
+            Limits for plotting in advance ratio. Defaults to [0.0, 1.4].
+        """
+
+        # Get distributions
+        rpms = np.linspace(rpm_lims[0], rpm_lims[1], 10)
+        Js = np.linspace(J_lims[0], J_lims[1], 10)
+
+        # Initialize figure
+        fig = plt.figure(figsize=plt.figaspect(1.))
+        fig.suptitle(self.name)
+        ax = fig.add_subplot(1,2,1, projection='3d')
+
+        # Loop through rpm values to plot thrust
+        for rpm in rpms:
+            thrust = np.zeros_like(Js)
+            for i, J in enumerate(Js):
+                w = to_rads(rpm)
+                V = self.get_velocity(rpm, J)
+                thrust[i] = self.get_thrust_coef(w, V)
+            rpms_to_plot = np.full(len(thrust), rpm)
+            ax.plot(Js, rpms_to_plot, thrust, 'r-')
+
+        # Format figure
+        ax.set_title("Predicted Thrust")
+        ax.set_xlabel("Advance Ratio")
+        ax.set_ylabel("RPM")
+        ax.set_zlabel("Thrust Coefficient")
+
+        ax = fig.add_subplot(1,2,2, projection='3d')
+
+        # Loop through rpm values to plot torque
+        for rpm in rpms:
+            power = np.zeros_like(Js)
+            for i, J in enumerate(Js):
+                w = to_rads(rpm)
+                V = self.get_velocity(rpm, J)
+                power[i] = self.get_torque_coef(w, V)*2.0*np.pi
+            rpms_to_plot = np.full(len(power), rpm)
+            ax.plot(Js, rpms_to_plot, power, 'r-')
+
+        # Format
+        ax.set_title("Predicted Power")
+        ax.set_xlabel("Advance Ratio")
+        ax.set_ylabel("RPM")
+        ax.set_zlabel("Power Coefficient")
+        plt.show()
+
+
+    @abstractmethod
+    def get_torque_coef(self, w, V):
+        pass
+
+
+    @abstractmethod
+    def get_thrust_coef(self, w, V):
+        pass
+
+
+class DatabaseFitProp(BaseProp):
     """Defines a propeller by database fits.
 
     Parameters
@@ -37,14 +169,6 @@ class DatabaseFitProp:
         self.thrust_coefs = record[9:num_coefs+9].reshape((thrust_fit_order+1,fit_of_thrust_fit_order+1)).astype(np.float)
         self.power_coefs = record[num_coefs+9:].reshape((power_fit_order+1,fit_of_power_fit_order+1)).astype(np.float)
 
-        
-    def __str__(self):
-        string = "Propeller: {0}".format(self.name)
-        string += "\n\tManufacturer: {0}".format(self.manufacturer)
-        string += "\n\tDiameter: {0} inches".format(self.diameter)
-        string += "\n\tPitch: {0} inches".format(self.pitch)
-        return string
-
 
     def get_torque_coef(self, w, V):
         """Returns the torque coefficient for the prop at the given angular velocity and freestream velocity.
@@ -63,15 +187,9 @@ class DatabaseFitProp:
             Torque coefficient.
         """
 
-        # Get revs per minute and second
+        # Get revs per minute and J
         rpm = to_rpm(w)
-        rps = rpm/60
-
-        # Check for angular velocity equal to 0, actual value will also be 0
-        if abs(rps)<1e-10:
-            J = 10000
-        else:
-            J = V/(rps*self.diameter/12)
+        J = self.get_advance_ratio(w, V)
 
         # Evaluate function to get fit coefficients
         a = poly_func(self.power_coefs.T, rpm)
@@ -79,7 +197,7 @@ class DatabaseFitProp:
             a[-1] = 0
 
         # Evaluate function to get torque coefficient
-        return poly_func(a, J)/2*np.pi
+        return poly_func(a, J)/2.0*np.pi
         
 
     def get_thrust_coef(self, w, V):
@@ -99,15 +217,9 @@ class DatabaseFitProp:
             Thrust coefficient.
         """
 
-        # Get revs per minute and second
+        # Get revs per minute and J
         rpm = to_rpm(w)
-        rps = rpm/60
-
-        # Check for angular velocity equal to 0, actual value will also be 0
-        if abs(rps)<1e-10:
-            J = 10000
-        else:
-            J = V/(rps*self.diameter/12)
+        J = self.get_advance_ratio(w, V)
         
         # Evaluate function to get fit coefficients
         a = poly_func(self.thrust_coefs.T, rpm)
@@ -119,70 +231,79 @@ class DatabaseFitProp:
         return poly_func(a, J)
 
 
-    def plot_coefs(self, rpm_lims=[0.0, 35000.0], J_lims=[0.0, 1.4]):
-        """Plot thrust and torque coefficients as functions of rpm and advance ratio.
+class DatabaseDataProp(BaseProp):
+    """Defines a propeller by tabulated data."""
+
+    def __init__(self, tag):
+        
+        # Load data file
+        prop_dir = os.path.join(os.path.dirname(__file__), "props")
+        data_filename = os.path.join(prop_dir, tag+".ppdat")
+        with open(data_filename, 'r') as data_file:
+            self._data = np.genfromtxt(data_file, skip_header=1)
+
+        # Load info
+        info_filename = os.path.join(prop_dir, tag+".ppinf")
+        with open(info_filename, 'r') as info_file:
+            self._info_dict = json.load(info_file)
+
+        # Store params
+        self.name = self._info_dict["name"]
+        self.manufacturer = self._info_dict["manufacturer"]
+        self.diameter = self._info_dict["diameter"]
+        self.pitch = self._info_dict["pitch"]
+
+
+    def get_torque_coef(self, w, V):
+        """Returns the torque coefficient for the prop at the given angular velocity and freestream velocity.
 
         Parameters
         ----------
-        rpm_lims : list, optional
-            Limits for plotting in rpm. Defaults to [0.0, 35000.0].
+        w : float
+            Angular velocity of the prop in radians per second.
 
-        J_lims : list, optional
-            Limits for plotting in advance ratio. Defaults to [0.0, 1.4].
+        V : float
+            Freestream velocity in feet per second.
+
+        Returns
+        -------
+        float
+            Torque coefficient.
         """
 
-        # Get distributions
-        rpms = np.linspace(rpm_lims[0], rpm_lims[1], 10)
-        Js = np.linspace(J_lims[0], J_lims[1], 10)
+        # Get revs per minute and J
+        rpm = to_rpm(w)
+        J = self.get_advance_ratio(w, V)
 
-        # Initialize figure
-        fig = plt.figure(figsize=plt.figaspect(1.))
-        fig.suptitle(self.name)
-        ax = fig.add_subplot(1,2,1, projection='3d')
+        return interp.griddata(self._data[:,:2], self._data[:,3], np.array([[rpm, J]]), method='linear').item()/(2.0*np.pi)
+        
 
-        # Loop through rpm values to plot thrust
-        for rpm in rpms:
-            a = poly_func(self.thrust_coefs.T, rpm)
-            if(a[-1]>0):#Quadratic coefficient should always be non-positive
-                a[-1] = 0
-            thrust = poly_func(a, Js)
-            rpms_to_plot = np.full(len(thrust),rpm)
-            ax.plot(Js, rpms_to_plot, thrust, 'r-')
+    def get_thrust_coef(self, w, V):
+        """Returns the thrust coefficient for the prop at the given angular velocity and freestream velocity.
 
-        # Format figure
-        ax.set_title("Predicted Thrust")
-        ax.set_xlabel("Advance Ratio")
-        ax.set_ylabel("RPM")
-        ax.set_zlabel("Thrust Coefficient")
+        Parameters
+        ----------
+        w : float
+            Angular velocity of the prop in radians per second.
 
-        ax = fig.add_subplot(1,2,2, projection='3d')
+        V : float
+            Freestream velocity in feet per second.
 
-        # Loop through rpm values to plot torque
-        for rpm in rpms:
-            a = poly_func(self.power_coefs.T, rpm)
-            if(a[-1]>0):#Quadratic coefficient should always be non-positive
-                a[-1] = 0
-            power = poly_func(a, Js)
-            rpms_to_plot = np.full(len(power),rpm)
-            ax.plot(Js, rpms_to_plot, power, 'b-')
+        Returns
+        -------
+        float
+            Thrust coefficient.
+        """
 
-        # Format
-        ax.set_title("Predicted Power")
-        ax.set_xlabel("Advance Ratio")
-        ax.set_ylabel("RPM")
-        ax.set_zlabel("Power Coefficient")
-        plt.show()
+        # Get revs per minute and J
+        rpm = to_rpm(w)
+        J = self.get_advance_ratio(w, V)
+        
+        return interp.griddata(self._data[:,:2], self._data[:,2], np.array([[rpm, J]]), method='linear').item()
 
 
-class DatabaseDataProp:
-    """Defines a propeller by tabulated data."""
-
-    def __init__(self, **kwargs):
-        self.name = kwargs.get("name", "Generic Prop")
-
-
-class BladeElementProp:
+class BladeElementProp(BaseProp):
     """Defines the performance of a propeller using blade element theory."""
 
     def __init__(self, **kwargs):
-        self.name = kwargs.get("name", "Generic Prop")
+        pass

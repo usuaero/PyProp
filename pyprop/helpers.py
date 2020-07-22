@@ -120,8 +120,13 @@ def convert_units(in_value, units, system):
 
 
 def to_rpm(rads):
-    #Converts rads per second to rpms
+    #Converts rads per second to rpm
     return rads*30.0/m.pi
+
+
+def to_rads(rpm):
+    #Converts rpm to rads per second
+    return rpm*m.pi/30.0
 
 
 def import_value(key, dict_of_vals, system, default_value):
