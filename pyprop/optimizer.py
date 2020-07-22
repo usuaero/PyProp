@@ -171,7 +171,9 @@ class Optimizer:
         print("Throttle setting for max flight: {0}".format(best_unit.calc_cruise_throttle(V_req, T_req)))
         print("Current draw: {0} A".format(best_unit.I_motor))
 
+        # Plot results
         if kwargs.get("plot", True):
+
             # Define picker
             def on_pick(event):
                 # Handles when the user picks a plotted point in the design space. Highlights that point and plots that unit's thrust curves.
@@ -249,6 +251,31 @@ class Optimizer:
             fig.canvas.mpl_connect('pick_event',on_pick)
             plt.show(block=True)
             plt.ioff()
+
+        # Export results
+        filename = kwargs.get("filename", None)
+        if filename is not None:
+
+            # Open file
+            with open(filename, 'w') as export_file:
+
+                # Write header
+                header = "{:<25}{:<25}{:<25}{:<25}{:<25}{:<45}{:<25}{:<25}{:<35}{:<25}{:<35}{:<25}{:<25}{:<25}{:<25}".format("Flight Time [min]", "Prop Name", "Prop Manufacturer",
+                                                                                                                             "Prop Diameter", "Prop Pitch [in]", "Motor Name", "Motor Manufacturer",
+                                                                                                                             "Motor Kv", "ESC Name", "ESC Manufacturer", "Battery Name",
+                                                                                                                             "Battery Manufacturer", "Battery Voltage [V]",
+                                                                                                                             "Battery Capacity [mAh]", "Total Weight [lb]")
+                print(header, file=export_file)
+
+                # Loop through flight times from greater to least
+                sorted_indices = np.argsort(t_flight)
+                for i in sorted_indices[::-1]:
+                    curr_unit = units[i]
+                    row = "{:<25.10}{:<25}{:<25}{:<25.10}{:<25.10}{:<45}{:<25}{:<25.10}{:<35}{:<25}{:<35}{:<25}{:<25.10}{:<25.10}{:<25.10}"
+                    row = row.format(t_flight[i], curr_unit.prop.name, curr_unit.prop.manufacturer, curr_unit.prop.diameter, curr_unit.prop.pitch, curr_unit.motor.name, curr_unit.motor.manufacturer,
+                                     curr_unit.motor.Kv, curr_unit.esc.name, curr_unit.esc.manufacturer, curr_unit.batt.name, curr_unit.batt.manufacturer, curr_unit.batt.V0, curr_unit.batt.capacity,
+                                     curr_unit.get_weight())
+                    print(row, file=export_file)
 
 
     def _append_constraints(self, names, manufacturers, cnstr_dict, component):
