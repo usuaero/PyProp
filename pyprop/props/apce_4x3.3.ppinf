@@ -1,0 +1,7 @@
+{
+    "name": "apce_4x3.3",
+    "manufacturer": "APC",
+    "diameter": 4.0,
+    "pitch": 3.0,
+    "data_file": "dev/../pyprop/props/apce_4x3.3.ppdat"
+}

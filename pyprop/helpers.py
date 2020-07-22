@@ -1,4 +1,4 @@
-"""A set of useful helper functions for MachUpX to use."""
+"""A set of useful helper functions for PyProp to use."""
 
 import os
 import copy

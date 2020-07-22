@@ -1,0 +1,7 @@
+{
+    "name": "apcep(cd)_20.0x22.5",
+    "manufacturer": "APC",
+    "diameter": 20.0,
+    "pitch": 22.0,
+    "data_file": "dev/../pyprop/props/apcep(cd)_20.0x22.5.ppdat"
+}

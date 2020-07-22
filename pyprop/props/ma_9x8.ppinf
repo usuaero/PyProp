@@ -1,0 +1,7 @@
+{
+    "name": "ma_9x8",
+    "manufacturer": "MASTERAIRSCREW",
+    "diameter": 9.0,
+    "pitch": 8.0,
+    "data_file": "dev/../pyprop/props/ma_9x8.ppdat"
+}

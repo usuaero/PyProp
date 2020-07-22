@@ -1,0 +1,7 @@
+{
+    "name": "apcf_5x5",
+    "manufacturer": "APC",
+    "diameter": 5.0,
+    "pitch": 5.0,
+    "data_file": "dev/../pyprop/props/apcf_5x5.ppdat"
+}

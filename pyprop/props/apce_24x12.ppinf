@@ -1,0 +1,7 @@
+{
+    "name": "apce_24x12",
+    "manufacturer": "APC",
+    "diameter": 24.0,
+    "pitch": 12.0,
+    "data_file": "dev/../pyprop/props/apce_24x12.ppdat"
+}

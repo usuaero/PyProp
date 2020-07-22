@@ -1,0 +1,7 @@
+{
+    "name": "grcsp_9x5",
+    "manufacturer": "GRAUPNER",
+    "diameter": 9.0,
+    "pitch": 5.0,
+    "data_file": "dev/../pyprop/props/grcsp_9x5.ppdat"
+}

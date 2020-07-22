@@ -1,0 +1,7 @@
+{
+    "name": "rusp_11x4",
+    "manufacturer": "REVUP",
+    "diameter": 11.0,
+    "pitch": 4.0,
+    "data_file": "dev/../pyprop/props/rusp_11x4.ppdat"
+}

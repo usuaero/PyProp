@@ -1,0 +1,7 @@
+{
+    "name": "union-u80_3.15x20deg",
+    "manufacturer": "UNION",
+    "diameter": 3.15,
+    "pitch": 3.781948353122709,
+    "data_file": "dev/../pyprop/props/union-u80_3.15x20deg.ppdat"
+}

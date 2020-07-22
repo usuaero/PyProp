@@ -1,0 +1,7 @@
+{
+    "name": "pl_100x80",
+    "manufacturer": "PLANTRACO",
+    "diameter": 3.937007874015748,
+    "pitch": 3.1496062992125986,
+    "data_file": "dev/../pyprop/props/pl_100x80.ppdat"
+}

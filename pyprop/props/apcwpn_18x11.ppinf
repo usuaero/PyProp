@@ -1,0 +1,7 @@
+{
+    "name": "apcwpn_18x11",
+    "manufacturer": "APC",
+    "diameter": 18.0,
+    "pitch": 11.0,
+    "data_file": "dev/../pyprop/props/apcwpn_18x11.ppdat"
+}

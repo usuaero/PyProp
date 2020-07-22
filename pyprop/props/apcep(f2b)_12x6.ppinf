@@ -1,0 +1,7 @@
+{
+    "name": "apcep(f2b)_12x6",
+    "manufacturer": "APC",
+    "diameter": 12.0,
+    "pitch": 6.0,
+    "data_file": "dev/../pyprop/props/apcep(f2b)_12x6.ppdat"
+}

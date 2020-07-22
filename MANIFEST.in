@@ -1,1 +1,3 @@
 include pyprop/components.db
+include pyprop/props/*.ppdat
+include pyprop/props/*.ppinf

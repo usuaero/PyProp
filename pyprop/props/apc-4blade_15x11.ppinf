@@ -1,0 +1,7 @@
+{
+    "name": "apc-4blade_15x11",
+    "manufacturer": "APC",
+    "diameter": 15.0,
+    "pitch": 11.0,
+    "data_file": "dev/../pyprop/props/apc-4blade_15x11.ppdat"
+}

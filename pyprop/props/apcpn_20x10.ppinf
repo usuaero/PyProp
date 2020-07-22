@@ -1,0 +1,7 @@
+{
+    "name": "apcpn_20x10",
+    "manufacturer": "APC",
+    "diameter": 20.0,
+    "pitch": 10.0,
+    "data_file": "dev/../pyprop/props/apcpn_20x10.ppdat"
+}

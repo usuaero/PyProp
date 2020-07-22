@@ -1,0 +1,7 @@
+{
+    "name": "apcsf_10x3.8",
+    "manufacturer": "APC",
+    "diameter": 10.0,
+    "pitch": 3.0,
+    "data_file": "dev/../pyprop/props/apcsf_10x3.8.ppdat"
+}

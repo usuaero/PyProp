@@ -1,0 +1,7 @@
+{
+    "name": "kpf_96x70",
+    "manufacturer": "KP",
+    "diameter": 3.7795275590551185,
+    "pitch": 2.7559055118110236,
+    "data_file": "dev/../pyprop/props/kpf_96x70.ppdat"
+}

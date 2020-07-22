@@ -1,0 +1,7 @@
+{
+    "name": "da4022-3b_9x6.75",
+    "manufacturer": "UIUC",
+    "diameter": 9.0,
+    "pitch": 6.75,
+    "data_file": "dev/../pyprop/props/da4022-3b_9x6.75.ppdat"
+}

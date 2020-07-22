@@ -1,0 +1,7 @@
+{
+    "name": "grsn_10x7",
+    "manufacturer": "GRAUPNER",
+    "diameter": 10.0,
+    "pitch": 7.0,
+    "data_file": "dev/../pyprop/props/grsn_10x7.ppdat"
+}

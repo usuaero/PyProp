@@ -1,0 +1,7 @@
+{
+    "name": "apcmr_12x5.5",
+    "manufacturer": "APC",
+    "diameter": 12.0,
+    "pitch": 5.0,
+    "data_file": "dev/../pyprop/props/apcmr_12x5.5.ppdat"
+}

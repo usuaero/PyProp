@@ -1,0 +1,7 @@
+{
+    "name": "da4002_5x2.65",
+    "manufacturer": "UIUC",
+    "diameter": 5.0,
+    "pitch": 2.65,
+    "data_file": "dev/../pyprop/props/da4002_5x2.65.ppdat"
+}

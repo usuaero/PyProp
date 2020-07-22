@@ -1,0 +1,7 @@
+{
+    "name": "vp_140x45",
+    "manufacturer": "VAPOR",
+    "diameter": 5.511811023622047,
+    "pitch": 1.7716535433070868,
+    "data_file": "dev/../pyprop/props/vp_140x45.ppdat"
+}

@@ -1,0 +1,7 @@
+{
+    "name": "mi_4x2.7",
+    "manufacturer": "MICROINVENT",
+    "diameter": 4.0,
+    "pitch": 2.7,
+    "data_file": "dev/../pyprop/props/mi_4x2.7.ppdat"
+}

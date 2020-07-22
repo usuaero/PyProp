@@ -1,0 +1,7 @@
+{
+    "name": "grcp_10x8",
+    "manufacturer": "GRAUPNER",
+    "diameter": 10.0,
+    "pitch": 8.0,
+    "data_file": "dev/../pyprop/props/grcp_10x8.ppdat"
+}

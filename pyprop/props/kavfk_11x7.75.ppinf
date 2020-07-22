@@ -1,0 +1,7 @@
+{
+    "name": "kavfk_11x7.75",
+    "manufacturer": "KAVON",
+    "diameter": 11.0,
+    "pitch": 7.75,
+    "data_file": "dev/../pyprop/props/kavfk_11x7.75.ppdat"
+}
