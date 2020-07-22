@@ -113,10 +113,10 @@ class Battery(DatabaseComponent):
     def __str__(self):
         string = "Battery: {0}".format(self.name)
         string += "\n\tManufacturer: {0}".format(self.manufacturer)
-        string += "\n\tCapacity: {0}".format(self.cell_cap)
+        string += "\n\tCapacity: {0} mAh".format(self.cell_cap)
         string += "\n\tNum Cells: {0}".format(self.n)
-        string += "\n\tVoltage: {0}".format(self.V0)
-        string += "\n\tWeight: {0}".format(self.weight)
+        string += "\n\tVoltage: {0} V".format(self.V0)
+        string += "\n\tWeight: {0} oz".format(self.weight)
         return string
 
 
@@ -180,8 +180,8 @@ class ESC(DatabaseComponent):
     def __str__(self):
         string = "ESC: {0}".format(self.name)
         string += "\n\tManufacturer: {0}".format(self.manufacturer)
-        string += "\n\tMax Current: {0}".format(self.I_max)
-        string += "\n\tWeight: {0}".format(self.weight)
+        string += "\n\tMax Current: {0} A".format(self.I_max)
+        string += "\n\tWeight: {0} oz".format(self.weight)
         return string
 
         
@@ -212,6 +212,10 @@ class Motor(DatabaseComponent):
     
     I_no_load : float
         No-load current of the motor in amps. Valid only for "user_defined".
+    
+    I_max : float
+        Maximum current that can be handled by the motor in amps. Valid only for
+        "user_defined".
 
     gear_ratio : float, optional
         Gear ratio of the motor. A valud greater than unity will correspond
@@ -237,6 +241,7 @@ class Motor(DatabaseComponent):
             self.Kv = float(record[3])
             self.Gr = float(record[4])
             self.I0 = float(record[6])
+            self.I_max = np.inf
             self.R = float(record[5])
             self.name = record[1]
             self.manufacturer = record[2]
@@ -248,15 +253,19 @@ class Motor(DatabaseComponent):
             self.Kv = kwargs.get("Kv")
             self.Gr = kwargs.get("gear_ratio", 1.0)
             self.I0 = kwargs.get("I_no_load")
+            self.I_max = kwargs.get("I_max", np.inf)
             self.R = kwargs.get("resistance", 0.0)
             self.name = kwargs.get("name", "user_motor")
             self.manufacturer = kwargs.get("manufacturer", "user")
             self.weight = kwargs.get("weight")
+
+        # Determine torque constant
+        self.Kt = 7.0432/self.Kv # Converts to ft*lb/A
 
 
     def __str__(self):
         string = "Motor: {0}".format(self.name)
         string += "\n\tManufacturer: {0}".format(self.manufacturer)
         string += "\n\tKv: {0}".format(self.Kv)
-        string += "\n\tWeight: {0}".format(self.weight)
+        string += "\n\tWeight: {0} oz".format(self.weight)
         return string

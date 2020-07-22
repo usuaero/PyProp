@@ -7,6 +7,7 @@ from .propellers import DatabaseFitProp, BladeElementProp
 from .electronics import Battery, ESC, Motor
 from .std_atmos import statee, statsi
 from .helpers import to_rpm
+from .exceptions import MaxCurrentExceededError, ThrottleNotFoundError, TorquesNotMatchedError, InvalidRuntimeError
 
 class PropulsionUnit:
     """Defines a full electric propulsion unit.
@@ -57,15 +58,14 @@ class PropulsionUnit:
         """
 
         # Determine motor current
-        etaS = 1 - 0.078*(1 - throttle)
+        etaS = 1.0-0.078*(1.0-throttle)
         self.I_motor = (etaS*throttle*self.batt.V0-(self.motor.Gr/self.motor.Kv)*revs)/(etaS*throttle*self.batt.R+self.esc.R+self.motor.R)
 
         # Determine torque
-        # Note: the 7.0432 constant converts units [(Nm/ftlb)(min/s)(rad/rev)]^-1
-        return 7.0432*self.motor.Gr/self.motor.Kv * (self.I_motor - self.motor.I0)
+        return self.motor.Kt*self.motor.Gr*(self.I_motor-self.motor.I0)
 
     
-    def calc_cruise_thrust(self, v_cruise, throttle):
+    def calc_cruise_thrust(self, v_cruise, throttle, max_iter=1000):
         """Computes thrust produced at a given cruise speed and throttle setting.
 
         Parameters
@@ -76,13 +76,16 @@ class PropulsionUnit:
         throttle : float
             Throttle setting.
 
+        max_iter : int, optional
+            Maximum iterations for the secant method. Defaults to 1000.
+
         Returns
         -------
         float
             Thrust in lbf.
         """
 
-        # Check for zero inputs
+        # Check for zero inputs, in which case the thrust is zero. Obviously.
         if v_cruise == 0.0 and throttle == 0.0:
             self._w = 0.0
             return 0.0
@@ -99,7 +102,10 @@ class PropulsionUnit:
         w_1 = w_0 * 1.1
         iterations = 0
         
-        while err_aprx >= err_max and iterations < 1000:
+        # Iterate using the secant method
+        while err_aprx >= err_max and iterations < max_iter:
+
+            # Get new guess
             iterations = iterations + 1
             Cl_prop = self.prop.get_torque_coef(w_1, v_cruise)
             T_motor = self.calc_motor_torque(throttle, to_rpm(w_1))
@@ -107,20 +113,22 @@ class PropulsionUnit:
             f_1 = T_motor - T_prop
             
             w_2 = w_1 - (f_1*(w_0 - w_1))/(f_0 - f_1)
-            if w_2 < 0: # Prop angular velocity will never be negative even if windmilling
+
+            # Check for negative w. Prop angular velocity will never be negative even if windmilling.
+            if w_2 < 0:
                 w_2 = 0.00001
 
+
+            # Update for next iteration
             err_aprx = abs((w_2 - w_1)/w_2)
-            
             w_0 = w_1
             f_0 = f_1
             w_1 = w_2
-        else:
-            if iterations > 1000:
-                print(err_aprx)
-                raise RuntimeError("Propeller and motor torque could not be matched!")
+
+            if iterations > max_iter:
+                raise TorquesNotMatchedError(v_cruise, throttle)
     
-        if False: #iterations >= 1000:
+        if False: #iterations >= max_iter:
             w = np.linspace(0,30000,10000)
             T_motor = np.zeros(10000)
             T_prop = np.zeros(10000)
@@ -141,18 +149,39 @@ class PropulsionUnit:
 
         return Ct*self._rho*(w_2/(2*np.pi))**2*(self.prop.diameter/12)**4
     
-    #Computes required throttle setting for a given thrust and cruise speed
-    def calc_cruise_throttle(self, v_cruise, T_req):
-        #Uses a secant method
+    
+    def calc_cruise_throttle(self, v_cruise, T_req, max_iter=1000):
+        """Computes required throttle setting for a given thrust and cruise speed.
+
+        Parameters
+        ----------
+        v_cruise : float
+            Cruise velocity in ft/s.
+
+        T_req : float
+            Required thrust in lbf.
+
+        max_iter : int, optional
+            Maximum iterations for the secant method. Defaults to 1000.
+        
+        Returns
+        -------
+        float
+            Throttle setting required for given thrust and velocity.
+        """
+
+        # Get initial guess
         err_max = 0.000001
-        err_aprx = 1 + err_max
+        err_aprx = 1.0
         t_0 = 0.5
         T_0 = self.calc_cruise_thrust(v_cruise, t_0)
         t_1 = t_0*1.1
         iterations = 0
         
-        while err_aprx >= err_max and iterations < 1000:
+        # Iterate using secant method
+        while err_aprx >= err_max:
             
+            # Get new throttle estimate
             iterations = iterations + 1
             T_1 = self.calc_cruise_thrust(v_cruise, t_1) - T_req
             
@@ -160,15 +189,21 @@ class PropulsionUnit:
             
             err_aprx = abs((t_2 - t_1)/t_2)
             
+            # Check if we're way off
             if t_2 > 10:
                 t_2 = 1.1
             elif t_2 < -10:
                 t_2 = -0.1
+
+            # Update for next iteration
             t_0 = t_1
             T_0 = T_1
             t_1 = t_2
 
-        #if iterations == 1000:
+            if iterations > max_iter:
+                raise ThrottleNotFoundError("not_converged", v_cruise, T_req)
+
+        #if iterations == max_iter:
         #    t = np.linspace(0,1.0,100)
         #    T = np.zeros(100)
         #    for i in range(100):
@@ -176,11 +211,15 @@ class PropulsionUnit:
         #    plt.plot(t,T) 
         #    plt.show()
 
-        if t_2 > 1 or t_2 < 0:
-            return None
+        # Check it's reasonable
+        if t_2 > 1.0 or t_2 < 0.0:
+            raise ThrottleNotFoundError("throttle_invalid", v_cruise, T_req, final_val=t_2)
         
-        self.calc_cruise_thrust(v_cruise, t_2) # To make sure member variables are fully updated
+        # Update member variables using final values
+        self.calc_cruise_thrust(v_cruise, t_2)
+
         return t_2
+
         
     def plot_thrust_curves(self, v_lims, n_vel=10, n_thr=10):
         """Plots thrust curves for the propulsion unit through the range of specified velocities.
@@ -234,7 +273,7 @@ class PropulsionUnit:
 
 
     def calc_batt_life(self, v_cruise, T_req):
-        """Determines how long the battery w_ill last based on a required thrust and cruise speed.
+        """Determines how long the battery will last based on a required thrust and cruise speed.
         This assumes nominal cell capacity and constant battery discharge voltage.
 
         Parameters
@@ -254,14 +293,13 @@ class PropulsionUnit:
         # Calculate required throttle
         throttle = self.calc_cruise_throttle(v_cruise, T_req)
 
-        # Check we have a result
-        if(throttle==None or self.I_motor > self.esc.I_max or self.I_motor > self.batt.I_max):
-            return None
+        # Check
+        self._check_current_draw()
 
         # Determine the run time
-        run_time = (self.batt.cell_cap/1000)/self.I_motor*60 # Gives run time in minutes, assuming nominal cell capacity and constant battery votlage
+        run_time = (self.batt.cell_cap/1000.0)/self.I_motor*60.0 # Gives run time in minutes, assuming nominal cell capacity and constant battery votlage
         if run_time < 0:
-            return None
+            raise InvalidRuntimeError(run_time)
         return run_time
 
 
@@ -275,6 +313,7 @@ class PropulsionUnit:
         """
         return (self.batt.weight + self.motor.weight + self.esc.weight)/16.0
 
+
     def __str__(self):
         string = "----Propulsion Unit----"
         string += "\n{0}".format(str(self.prop))
@@ -282,3 +321,14 @@ class PropulsionUnit:
         string += "\n{0}".format(str(self.esc))
         string += "\n{0}".format(str(self.batt))
         return string
+
+
+    def _check_current_draw(self):
+        # Makes sure the current drawn does not exceed that allowed by any of the components
+
+        if self.I_motor > self.esc.I_max:
+            raise MaxCurrentExceededError("ESC", self.esc.name, self.esc.I_max, self.I_motor)
+        if self.I_motor > self.batt.I_max:
+            raise MaxCurrentExceededError("battery", self.batt.name, self.batt.I_max, self.I_motor)
+        if self.I_motor > self.motor.I_max:
+            raise MaxCurrentExceededError("motor", self.motor.name, self.motor.I_max, self.I_motor)

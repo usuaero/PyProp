@@ -16,6 +16,7 @@ import numpy as np
 from .electronics import Battery, Motor, ESC
 from .propulsion_unit import PropulsionUnit
 from .propellers import DatabaseFitProp, DatabaseDataProp, BladeElementProp
+from .exceptions import MaxCurrentExceededError, TorquesNotMatchedError, ThrottleNotFoundError, InvalidRuntimeError
 
 class Optimizer:
     """A class for optimizing propulsion units. Will act as a wrapper for lower-level classes
@@ -307,7 +308,17 @@ class Optimizer:
                     warnings.simplefilter("ignore")
                     t_flight_curr = curr_unit.calc_batt_life(V_req, T_req)
                     thr_curr = curr_unit.calc_cruise_throttle(V_req, T_req)
+
+            # Anything that goes wrong just means this particular combination isn't up to snuff
             except ZeroDivisionError:
+                continue
+            except ThrottleNotFoundError:
+                continue
+            except TorquesNotMatchedError:
+                continue
+            except MaxCurrentExceededError:
+                continue
+            except InvalidRuntimeError:
                 continue
 
         # Return params

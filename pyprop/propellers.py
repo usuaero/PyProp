@@ -38,8 +38,8 @@ class DatabaseFitProp(DatabaseComponent):
     def __str__(self):
         string = "Propeller: {0}".format(self.name)
         string += "\n\tManufacturer: {0}".format(self.manufacturer)
-        string += "\n\tDiameter: {0}".format(self.diameter)
-        string += "\n\tPitch: {0}".format(self.pitch)
+        string += "\n\tDiameter: {0} inches".format(self.diameter)
+        string += "\n\tPitch: {0} inches".format(self.pitch)
         return string
 
 
