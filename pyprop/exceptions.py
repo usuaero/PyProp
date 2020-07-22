@@ -89,3 +89,18 @@ class InvalidRuntimeError(Exception):
         self.runtime = runtime
 
         super().__init__("A runtime of {0} minutes was predicted, which is invalid.".format(self.runtime))
+
+
+class DatabaseRecordNotFoundError(Exception):
+    """"An error which occurs when the user tries to pull a record from the database which does not exist.
+
+    Method
+    ------
+    command : str
+        The sql command which failed.
+    """
+
+    def __init__(self, command):
+        self.command = command
+
+        super().__init__("The command '{0}' failed to retrieve a component from the database.".format(command))

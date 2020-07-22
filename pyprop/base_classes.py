@@ -5,6 +5,8 @@ import os
 import sqlite3 as sql
 import numpy as np
 
+from .exceptions import DatabaseRecordNotFoundError
+
 class DatabaseComponent:
     """A component defined in the database."""
 
@@ -70,6 +72,9 @@ class DatabaseComponent:
 
             # Get record
             db_cur.execute(command)
-            record = np.asarray(db_cur.fetchall())[0]
+            try:
+                record = np.asarray(db_cur.fetchall())[0]
+            except IndexError:
+                raise DatabaseRecordNotFoundError(command)
 
         return record
