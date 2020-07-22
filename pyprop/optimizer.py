@@ -1,10 +1,10 @@
 import math
 import sys
 import warnings
-import datetime
 import json
 import os
 import copy
+import time
 
 from random import randint,seed
 
@@ -74,6 +74,13 @@ class Optimizer:
             terminal. Selecting a design will also highlight that design in each of the 6 plots, so that general
             patterns in the design space can be opserved.
 
+        prop_model_type : str, optional
+            Determines which type of prop model is to be used. Can be "data", "fit", or "BET". "data" props are defined
+            by tabulated experimental data for COTS parts. "fit" props are defined by polynomial fits of the 
+            experimental data. "BET" props are defined by blade element theory, a numerical model for determining
+            prop behavior. **"fit" props are not guaranteed to be realistic. It is recommended these not be used.**
+            Defaults to "data".
+
         prop_constraints : dict, optional
             This can be used to constrain the propellers to a single prop or manufacturer. Formatted as
 
@@ -106,6 +113,9 @@ class Optimizer:
         V_req = kwargs.get("airspeed")
         h = kwargs.get("altitude", 0.0)
         W_frame = kwargs.get("airframe_weight", 0.0)
+        prop_model_type = kwargs.get("prop_model_type", "data")
+
+        seed(time.time())
 
         # Determine goal
         goal_type = kwargs.get("goal_type")
@@ -134,7 +144,7 @@ class Optimizer:
 
         # Distribute work
         with mp.Pool(processes=N_proc_max) as pool:
-            args = [(V_req, goal_val, h, goal_code, W_frame, names, manufacturers) for i in range(N_units)]
+            args = [(V_req, goal_val, h, goal_code, W_frame, names, manufacturers, prop_model_type) for i in range(N_units)]
             data = pool.map(self._get_random_unit, args)
 
         # Package results
@@ -277,13 +287,24 @@ class Optimizer:
         W_frame = args[4]
         names = args[5]
         manufacturers = args[6]
+        prop_model_type = args[7]
 
         # Loop through random components until we get a valid one
         t_flight_curr = None
         while t_flight_curr is None or math.isnan(t_flight_curr):
 
             #Fetch prop data
-            prop = create_component_from_database(component="fit_prop", name=names[0], manufacturer=manufacturers[0])
+            if prop_model_type == "data":
+                props = os.listdir(os.path.join(os.path.dirname(__file__), "props"))
+                prop_ind = randint(0, len(props)-1)
+                prop_name = props[prop_ind].replace(".ppdat", "").replace(".ppinf", "")
+                prop = DatabaseDataProp(prop_name)
+            elif prop_model_type == "fit":
+                prop = create_component_from_database(component="prop", name=names[0], manufacturer=manufacturers[0])
+            elif prop_model_type == "BET":
+                raise RuntimeError("BET prop model is not currently available.")
+            else:
+                raise IOError("{0} is not a valid prop model type.".format(prop_model_type))
 
             #Fetch motor data
             motor = create_component_from_database(component="motor", name=names[1], manufacturer=manufacturers[1])
