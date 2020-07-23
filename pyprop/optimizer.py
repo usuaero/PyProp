@@ -200,14 +200,14 @@ class Optimizer:
                 fig.suptitle("SELECTED Prop: {0} Motor: {1} Battery: {2} ESC: {3}".format(selected_unit.prop.name, selected_unit.motor.name, selected_unit.batt.name, selected_unit.esc.name))
 
                 # Highlight points in all plots
-                ax[0].plot(selected_unit.prop.diameter,t_flight[ind],'o')
-                ax[1].plot(selected_unit.prop.pitch,t_flight[ind],'o')
-                ax[2].plot(selected_unit.motor.Kv,t_flight[ind],'o')
-                ax[3].plot(selected_unit.batt.V0,t_flight[ind],'o')
-                ax[4].plot(selected_unit.batt.capacity,t_flight[ind],'o')
-                ax[5].plot(selected_unit.get_weight()+W_frame,t_flight[ind],'o')
-                ax[6].plot(throttles[ind],t_flight[ind],'o')
-                ax[7].plot(eff[ind],t_flight[ind],'o')
+                ax[0].plot(selected_unit.prop.diameter,t_flight[ind],'*')
+                ax[1].plot(selected_unit.prop.pitch,t_flight[ind],'*')
+                ax[2].plot(selected_unit.motor.Kv,t_flight[ind],'*')
+                ax[3].plot(selected_unit.batt.V0,t_flight[ind],'*')
+                ax[4].plot(selected_unit.batt.capacity,t_flight[ind],'*')
+                ax[5].plot(selected_unit.get_weight()+W_frame,t_flight[ind],'*')
+                ax[6].plot(throttles[ind],t_flight[ind],'*')
+                ax[7].plot(eff[ind],t_flight[ind],'*')
 
                 # Print out info
                 print(selected_unit)
@@ -229,42 +229,42 @@ class Optimizer:
             fig,((ax1,ax2,ax3,ax4),(ax5,ax6,ax7,ax8)) = plt.subplots(nrows=2,ncols=4)
             fig.suptitle("OPTIMUM Prop: {0} Motor: {1} Battery: {2} ESC: {3}".format(best_unit.prop.name, best_unit.motor.name, best_unit.batt.name, best_unit.esc.name))
 
-            ax1.plot([units[i].prop.diameter for i in range(N_units)],t_flight,'b*',picker=3)
+            ax1.scatter([units[i].prop.diameter for i in range(N_units)], t_flight, picker=3, c=eff)
             ax1.plot(best_unit.prop.diameter,t_max,'r*')
             ax1.set_xlabel("Prop Diameter [in]")
             ax1.set_ylabel("Flight Time [min]")
 
-            ax2.plot([units[i].prop.pitch for i in range(N_units)],t_flight,'b*',picker=3)
+            ax2.scatter([units[i].prop.pitch for i in range(N_units)],t_flight, c=eff,picker=3)
             ax2.plot(best_unit.prop.pitch,t_max,'r*')
             ax2.set_xlabel("Prop Pitch [in]")
             ax2.set_ylabel("Flight Time [min]")
 
-            ax3.plot([units[i].motor.Kv for i in range(N_units)],t_flight,'b*',picker=3)
+            ax3.scatter([units[i].motor.Kv for i in range(N_units)],t_flight, c=eff,picker=3)
             ax3.plot(best_unit.motor.Kv,t_max,'r*')
             ax3.set_xlabel("Motor Kv [rpm/V]")
             ax3.set_ylabel("Flight Time [min]")
 
-            ax4.plot([units[i].batt.V0 for i in range(N_units)],t_flight,'b*',picker=3)
+            ax4.scatter([units[i].batt.V0 for i in range(N_units)],t_flight, c=eff,picker=3)
             ax4.plot(best_unit.batt.V0,t_max,'r*')
             ax4.set_xlabel("Battery Voltage [V]")
             ax4.set_ylabel("Flight Time [min]")
 
-            ax5.plot([units[i].batt.capacity for i in range(N_units)],t_flight,'b*',picker=3)
+            ax5.scatter([units[i].batt.capacity for i in range(N_units)],t_flight, c=eff,picker=3)
             ax5.plot(best_unit.batt.capacity,t_max,'r*')
             ax5.set_xlabel("Battery Capacity [mAh]")
             ax5.set_ylabel("Flight Time [min]")
 
-            ax6.plot([units[i].get_weight()+W_frame for i in range(N_units)],t_flight,'b*',picker=3)
+            ax6.scatter([units[i].get_weight()+W_frame for i in range(N_units)],t_flight, c=eff,picker=3)
             ax6.plot(best_unit.get_weight()+W_frame,t_max,'r*')
             ax6.set_xlabel("Total Unit Weight [lb]")
             ax6.set_ylabel("Flight Time [min]")
 
-            ax7.plot(throttles,t_flight,'b*',picker=3)
+            ax7.scatter(throttles,t_flight, c=eff,picker=3)
             ax7.plot(throttle_at_max,t_max,'r*')
             ax7.set_xlabel("Throttle Setting at Max Flight Time")
             ax7.set_ylabel("Flight Time [min]")
 
-            ax8.plot(eff, t_flight, 'b*', picker=3)
+            ax8.scatter(eff, t_flight,  c=eff, picker=3)
             ax8.plot(eff[max_ind], t_max, 'r*')
             ax8.set_xlabel("Efficiency at Max Flight Time")
             ax8.set_ylabel("Flight Time [min]")
@@ -282,7 +282,7 @@ class Optimizer:
 
                 # Write header
                 header = "{:<25}{:<25}{:<25}{:<25}{:<25}{:<25}{:<25}{:<25}{:<25}{:<25}{:<25}{:<45}{:<25}{:<25}{:<35}{:<25}{:<35}{:<25}{:<25}{:<25}{:<25}"
-                header = header.format("Flight Time [min]", "Throttle Setting [%]", "Current Draw [A]", "Power Drawn [W]", "Power Developed [lbf*ft/s]", "Efficiency [%]",
+                header = header.format("Flight Time [min]", "Throttle Setting [%]", "Current Draw [A]", "Power Drawn [W]", "Power Produced [lbf*ft/s]", "Efficiency [%]",
                                        "Cruise Thrust [lbf]", "Prop Name", "Prop Manufacturer", "Prop Diameter [in]", "Prop Pitch [in]", "Motor Name",
                                        "Motor Manufacturer", "Motor Kv [rpm/V]", "ESC Name", "ESC Manufacturer", "Battery Name", "Battery Manufacturer",
                                        "Battery Voltage [V]", "Battery Capacity [mAh]", "Total Weight [lb]")
