@@ -148,10 +148,14 @@ class Optimizer:
             data = pool.map(self._get_random_unit, args)
 
         # Package results
-        t_flight, throttles, units = map(list,zip(*data))
+        t_flight, throttles, units, P_e, P_p, eff, cruise_thrust = map(list,zip(*data))
         t_flight = np.asarray(t_flight)
         throttles = np.asarray(throttles)
         units = np.asarray(units)
+        P_e = np.asarray(P_e)
+        P_p = np.asarray(P_p)
+        eff = np.asarray(eff)
+        cruise_thrust = np.asarray(cruise_thrust)
 
         # Determine optimum
         max_ind = np.argmax(t_flight)
@@ -166,10 +170,15 @@ class Optimizer:
             T_req = self._get_thrust_from_power_ratio(goal_val, best_unit.get_weight()+W_frame, V_req)
 
         # Print information to the terminal
-        print("Maximum flight time found: {0} min".format(t_max))
         print(best_unit)
-        print("Throttle setting for max flight: {0}".format(best_unit.calc_cruise_throttle(V_req, T_req)))
-        print("Current draw: {0} A".format(best_unit.I_motor))
+        print("Flight characteristics:")
+        print("    Maximum flight time: {0} min".format(t_max))
+        print("    Throttle setting: {0}".format(throttles[max_ind]))
+        print("    Current draw: {0} A".format(P_e[max_ind]/best_unit.batt.V0))
+        print("    Power drawn: {0} W".format(P_e[max_ind]))
+        print("    Power developed: {0} lbf*ft/s ({1} W)".format(P_p[max_ind], P_p[max_ind]/0.7375621494575464))
+        print("    Propulsive efficiency: {0}%".format(eff[max_ind]*100.0))
+        print("    Cruise thrust: {0} lbf".format(cruise_thrust[max_ind]))
 
         # Plot results
         if kwargs.get("plot", True):
@@ -198,11 +207,18 @@ class Optimizer:
                 ax[4].plot(selected_unit.batt.capacity,t_flight[ind],'o')
                 ax[5].plot(selected_unit.get_weight()+W_frame,t_flight[ind],'o')
                 ax[6].plot(throttles[ind],t_flight[ind],'o')
+                ax[7].plot(eff[ind],t_flight[ind],'o')
 
                 # Print out info
                 print(selected_unit)
-                print("Flight Time:",t_flight[ind],"min")
-                print("    at {:4.2f}% throttle".format(selected_unit.calc_cruise_throttle(V_req, T_req)*100))
+                print("Flight characteristics:")
+                print("    Flight Time: {0} min".format(t_flight[ind]))
+                print("    Throttle setting: {0}".format(throttles[ind]*100.0))
+                print("    Current draw: {0} A".format(P_e[ind]/selected_unit.batt.V0))
+                print("    Power drawn: {0} W".format(P_e[ind]))
+                print("    Power developed: {0} lbf*ft/s ({1} W)".format(P_p[ind], P_p[ind]/0.7375621494575464))
+                print("    Propulsive efficiency: {0}%".format(eff[ind]*100.0))
+                print("    Cruise thrust: {0} lbf".format(cruise_thrust[ind]))
 
                 # Plot performance curves
                 selected_unit.plot_thrust_curves([0.0, V_req*2.0+10.0], 11, 51)
@@ -248,6 +264,11 @@ class Optimizer:
             ax7.set_xlabel("Throttle Setting at Max Flight Time")
             ax7.set_ylabel("Flight Time [min]")
 
+            ax8.plot(eff, t_flight, 'b*', picker=3)
+            ax8.plot(eff[max_ind], t_max, 'r*')
+            ax8.set_xlabel("Efficiency at Max Flight Time")
+            ax8.set_ylabel("Flight Time [min]")
+
             fig.canvas.mpl_connect('pick_event',on_pick)
             plt.show(block=True)
             plt.ioff()
@@ -260,21 +281,22 @@ class Optimizer:
             with open(filename, 'w') as export_file:
 
                 # Write header
-                header = "{:<25}{:<25}{:<25}{:<25}{:<25}{:<45}{:<25}{:<25}{:<35}{:<25}{:<35}{:<25}{:<25}{:<25}{:<25}".format("Flight Time [min]", "Prop Name", "Prop Manufacturer",
-                                                                                                                             "Prop Diameter", "Prop Pitch [in]", "Motor Name", "Motor Manufacturer",
-                                                                                                                             "Motor Kv", "ESC Name", "ESC Manufacturer", "Battery Name",
-                                                                                                                             "Battery Manufacturer", "Battery Voltage [V]",
-                                                                                                                             "Battery Capacity [mAh]", "Total Weight [lb]")
+                header = "{:<25}{:<25}{:<25}{:<25}{:<25}{:<25}{:<25}{:<25}{:<25}{:<25}{:<25}{:<45}{:<25}{:<25}{:<35}{:<25}{:<35}{:<25}{:<25}{:<25}{:<25}"
+                header = header.format("Flight Time [min]", "Throttle Setting [%]", "Current Draw [A]", "Power Drawn [W]", "Power Developed [lbf*ft/s]", "Efficiency [%]",
+                                       "Cruise Thrust [lbf]", "Prop Name", "Prop Manufacturer", "Prop Diameter [in]", "Prop Pitch [in]", "Motor Name",
+                                       "Motor Manufacturer", "Motor Kv [rpm/V]", "ESC Name", "ESC Manufacturer", "Battery Name", "Battery Manufacturer",
+                                       "Battery Voltage [V]", "Battery Capacity [mAh]", "Total Weight [lb]")
                 print(header, file=export_file)
 
                 # Loop through flight times from greater to least
                 sorted_indices = np.argsort(t_flight)
                 for i in sorted_indices[::-1]:
                     curr_unit = units[i]
-                    row = "{:<25.10}{:<25}{:<25}{:<25.10}{:<25.10}{:<45}{:<25}{:<25.10}{:<35}{:<25}{:<35}{:<25}{:<25.10}{:<25.10}{:<25.10}"
-                    row = row.format(t_flight[i], curr_unit.prop.name, curr_unit.prop.manufacturer, curr_unit.prop.diameter, curr_unit.prop.pitch, curr_unit.motor.name, curr_unit.motor.manufacturer,
-                                     curr_unit.motor.Kv, curr_unit.esc.name, curr_unit.esc.manufacturer, curr_unit.batt.name, curr_unit.batt.manufacturer, curr_unit.batt.V0, curr_unit.batt.capacity,
-                                     curr_unit.get_weight())
+                    row = "{:<25.10}{:<25.10}{:<25.10}{:<25.10}{:<25.10}{:<25.10}{:<25.10}{:<25}{:<25}{:<25.10}{:<25.10}{:<45}{:<25}{:<25.10}{:<35}{:<25}{:<35}{:<25}{:<25.10}{:<25.10}{:<25.10}"
+                    row = row.format(t_flight[i], throttles[i]*100.0, P_e[i]/curr_unit.batt.V0, P_e[i], P_p[i], eff[i]*100.0, cruise_thrust[i], curr_unit.prop.name,
+                                     curr_unit.prop.manufacturer, curr_unit.prop.diameter, curr_unit.prop.pitch, curr_unit.motor.name, curr_unit.motor.manufacturer,
+                                     curr_unit.motor.Kv, curr_unit.esc.name, curr_unit.esc.manufacturer, curr_unit.batt.name, curr_unit.batt.manufacturer, curr_unit.batt.V0,
+                                     curr_unit.batt.capacity, curr_unit.get_weight())
                     print(row, file=export_file)
 
 
@@ -294,13 +316,13 @@ class Optimizer:
             raise RuntimeError("A manufacturer and name constraint cannot both be applied to {0}.".format(component))
         
         # Print constraint information
-        print(component.title())
+        print("    {0}".format(component.title()))
         if name is not None:
-            print("Name:", name)
+            print("        Name:", name)
         elif manufacturer is not None:
-            print("Manufacturer:", manufacturer)
+            print("        Manufacturer:", manufacturer)
         else:
-            print("Not constrained.")
+            print("        Not constrained.")
 
 
     def _get_random_unit(self, args):
@@ -357,6 +379,9 @@ class Optimizer:
                     warnings.simplefilter("ignore")
                     t_flight_curr = curr_unit.calc_batt_life(V_req, T_req)
                     thr_curr = curr_unit.calc_cruise_throttle(V_req, T_req)
+                    P_e_curr = curr_unit.get_electric_power()
+                    P_p_curr = V_req*T_req
+                    eff = P_p_curr/(P_e_curr*0.7375621494575464)
 
             # Anything that goes wrong just means this particular combination isn't up to snuff
             except ZeroDivisionError:
@@ -371,7 +396,7 @@ class Optimizer:
                 continue
 
         # Return params
-        return t_flight_curr, thr_curr, curr_unit
+        return t_flight_curr, thr_curr, curr_unit, P_e_curr, P_p_curr, eff, T_req
 
 
     def _get_thrust_from_power_ratio(self, power_ratio, weight, V):

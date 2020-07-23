@@ -4,7 +4,7 @@ import pyprop
 opter = pyprop.Optimizer()
 
 # Perform random search
-opter.random_search(n_units=100, airspeed=20.0, goal_type="thrust_to_weight_ratio", goal_val=0.3, airframe_weight=1.0, filename="search_results.txt")
+opter.random_search(n_units=1000, airspeed=20.0, goal_type="thrust_to_weight_ratio", goal_val=0.3, airframe_weight=1.0, filename="search_results.txt")
 #opter.random_search(n_units=10, airspeed=20.0, goal_type="power_to_weight_ratio", goal_val=70.0, airframe_weight=1.0)
 
 ## Jaden's propulsion unit

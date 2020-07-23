@@ -232,18 +232,29 @@ class DatabaseFitProp(BaseProp):
 
 
 class DatabaseDataProp(BaseProp):
-    """Defines a propeller by tabulated data."""
+    """Defines a propeller by tabulated data. The data for these
+    props are contained in the pyprop/props/ directory. PyProp will
+    import that data automatically to intialize the prop.
 
-    def __init__(self, tag):
+    Parameters
+    ----------
+    name : str
+        The name of the prop as stored in the props/ directory. This
+        is the same as the name of the prop in the components database.
+        The name should be given without the ".ppdat" or ".ppinf" file
+        extension.
+    """
+
+    def __init__(self, name):
         
         # Load data file
         prop_dir = os.path.join(os.path.dirname(__file__), "props")
-        data_filename = os.path.join(prop_dir, tag+".ppdat")
+        data_filename = os.path.join(prop_dir, name+".ppdat")
         with open(data_filename, 'r') as data_file:
             self._data = np.genfromtxt(data_file, skip_header=1)
 
         # Load info
-        info_filename = os.path.join(prop_dir, tag+".ppinf")
+        info_filename = os.path.join(prop_dir, name+".ppinf")
         with open(info_filename, 'r') as info_file:
             self._info_dict = json.load(info_file)
 

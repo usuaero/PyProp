@@ -314,6 +314,17 @@ class PropulsionUnit:
         return (self.batt.weight + self.motor.weight + self.esc.weight)/16.0
 
 
+    def get_electric_power(self):
+        """Returns the power sourced by the battery for the last calculated condition.
+
+        Returns
+        -------
+        float
+            Electrical power sourced in Watts.
+        """
+        return self.I_motor*self.batt.V0
+
+
     def __str__(self):
         string = "----Propulsion Unit----"
         string += "\n{0}".format(str(self.prop))
