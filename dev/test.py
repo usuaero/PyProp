@@ -26,4 +26,5 @@ import pyprop
 # BET Prop
 prop_file = "dev/test_prop.json"
 prop = pyprop.BladeElementProp("test_prop", prop_file)
-print(prop.get_thrust_coef(1256.637, 50.0))
+C_T = prop.get_thrust_coef(1256.637, 50.0)
+print(0.0023769*(1256.637/2*3.1415926535)**2*prop.diameter**4*C_T)

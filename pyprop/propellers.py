@@ -11,6 +11,7 @@ import airfoil_db as adb
 import math as m
 
 from abc import abstractmethod
+from scipy import integrate
 
 from .poly_fit import poly_func
 from .helpers import to_rpm, to_rads, import_value, check_filepath
@@ -680,6 +681,11 @@ class BladeElementProp(BaseProp):
         if not (hasattr(self, "_w_curr") and self._w_curr==w and hasattr(self, "_V_curr") and self._V_curr==V):
             self._determine_condition(w, V)
         
+        dCf = self._CD*np.cos(self._eps_inf+self._eps_ind)+self._CL*np.sin(self._eps_inf+self._eps_ind)
+        dCl = self._zeta**3*self._c_hat_b*(np.cos(self._eps_ind)/np.cos(self._eps_inf))**2*dCf
+        
+        return 0.125*np.pi**2*integrate.simps(dCl, self._zeta)
+        
 
     def get_thrust_coef(self, w, V):
         """Returns the thrust coefficient for the prop at the given angular velocity and freestream velocity.
@@ -702,11 +708,16 @@ class BladeElementProp(BaseProp):
         if not (hasattr(self, "_w_curr") and self._w_curr==w and hasattr(self, "_V_curr") and self._V_curr==V):
             self._determine_condition(w, V)
 
+        dCf = self._CL*np.cos(self._eps_inf + self._eps_ind) - self._CD*np.sin(self._eps_inf + self._eps_ind)
+        dCt = self._zeta**2*self._c_hat_b*(np.cos(self._eps_ind)/np.cos(self._eps_inf))**2*dCf
+        
+        return 0.25*np.pi**2*integrate.simps(dCt, self._zeta)
+
 
     def _determine_condition(self, w, V):
         # Determines propeller conditions at the given angular velocity and freestream velocity
 
-        # Store w and V to reduce need to recalculate eps_ind
+        # Store w and V to reduce need to recalculate _eps_ind
         self._w_curr = w
         self._V_curr = V
 
