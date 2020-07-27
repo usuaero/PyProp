@@ -31,12 +31,11 @@
         "hub_raidus" : 0.05,
         "weight" : 4.0,
         "diameter" : 1.0,
-        "pitch" : 0.5,
+        "aero_pitch" : 0.5,
         "chord" : [[0.0, 0.074624],
                    [1.0, 0.040]],
         "rotation" : "CCW",
         "airfoil" : "NACA_0010",
         "grid" : 20
-        }
     }
 }

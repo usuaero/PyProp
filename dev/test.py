@@ -1,10 +1,10 @@
 import pyprop
 
 # Initialize
-opter = pyprop.Optimizer()
+#opter = pyprop.Optimizer()
 
 # Perform random search
-opter.random_search(n_units=1000, airspeed=20.0, goal_type="thrust_to_weight_ratio", goal_val=0.3, airframe_weight=1.0, filename="search_results.txt")
+#opter.random_search(n_units=1000, airspeed=20.0, goal_type="thrust_to_weight_ratio", goal_val=0.3, airframe_weight=1.0, filename="search_results.txt")
 #opter.random_search(n_units=10, airspeed=20.0, goal_type="power_to_weight_ratio", goal_val=70.0, airframe_weight=1.0)
 
 ## Jaden's propulsion unit
@@ -22,3 +22,8 @@ opter.random_search(n_units=1000, airspeed=20.0, goal_type="thrust_to_weight_rat
 ## Database data prop
 #prop = pyprop.DatabaseDataProp("apc_11x3")
 #prop.plot_coefs()
+
+# BET Prop
+prop_file = "dev/test_prop.json"
+prop = pyprop.BladeElementProp("test_prop", prop_file)
+print(prop.get_thrust_coef(1256.637, 50.0))

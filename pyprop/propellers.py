@@ -2,16 +2,19 @@
 
 import os
 import json
+import copy
 
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate as interp
 import airfoil_db as adb
+import math as m
 
 from abc import abstractmethod
 
 from .poly_fit import poly_func
 from .helpers import to_rpm, to_rads, import_value, check_filepath
+from .standard_atmosphere import StandardAtmosphere
 
 class BaseProp:
     """Defines a propeller."""
@@ -337,13 +340,21 @@ class BladeElementProp(BaseProp):
 
         # Load basic parameters
         self.name = name
-        self._input_dict = input_dict
+        if isinstance(input_dict, str):
+            with open(input_dict, 'r') as input_file:
+                self._input_dict = json.load(input_file)
+        else:
+            self._input_dict = input_dict
         geom_dict = self._input_dict["geometry"]
         self.diameter = import_value("diameter", geom_dict, "English", None)
         self.k = self._input_dict["geometry"]["n_blades"]
         self._r_hub = import_value("hub_radius", geom_dict, "English", 0.0)
         self.weight = import_value("weight", geom_dict, "English", 0.0)
         self._rot_dir = geom_dict.get("rotation", "CW")
+        self._h = import_value("altitude", self._input_dict, "English", 0.0)
+
+        # Initialize atmosphere
+        self._atmos = StandardAtmosphere("English")
 
         # Create distributions
         self._initialize_zeta()
@@ -384,21 +395,29 @@ class BladeElementProp(BaseProp):
     def _initialize_getters(self):
         # Sets getters for functions which are a function of span
 
-        # Determine how the wing LQC has been given
-        chord_data = import_value("chord", self._input_dict, "English", "not_given")
-        pitch_data = import_value("pitch", self._input_dict, "English", "not_given")
-        twist_data = import_value("twist", self._input_dict, "English", "not_given")
-        selig_data = import_value("geometry_file", self._input_dict, "English", "not_given")
+        # Get input data
+        geom_dict = self._input_dict["geometry"]
+        chord_data = import_value("chord", geom_dict, "English", "not_given")
+        aero_pitch_data = import_value("aero_pitch", geom_dict, "English", "not_given")
+        geom_pitch_data = import_value("geom_pitch", geom_dict, "English", "not_given")
+        twist_data = import_value("twist", geom_dict, "English", "not_given")
+        selig_data = import_value("geometry_file", geom_dict, "English", "not_given")
 
         # Check for redundant definitions
         if chord_data != "not_given" and isinstance(selig_data, np.ndarray):
             raise IOError("'chord' and 'geometry_file' may not both be specified at once.")
-        if pitch_data != "not_given" and isinstance(selig_data, np.ndarray):
-            raise IOError("'pitch' and 'geometry_file' may not both be specified at once.")
+        if aero_pitch_data != "not_given" and isinstance(selig_data, np.ndarray):
+            raise IOError("'aero_pitch' and 'geometry_file' may not both be specified at once.")
+        if geom_pitch_data != "not_given" and isinstance(selig_data, np.ndarray):
+            raise IOError("'geom_pitch' and 'geometry_file' may not both be specified at once.")
         if twist_data != "not_given" and isinstance(selig_data, np.ndarray):
             raise IOError("'twist' and 'geometry_file' may not both be specified at once.")
-        if twist_data != "not_given" and pitch_data != "not_given":
-            raise IOError("'twist' and 'pitch' may not both be specified at once.")
+        if twist_data != "not_given" and aero_pitch_data != "not_given":
+            raise IOError("'twist' and 'aero_pitch' may not both be specified at once.")
+        if twist_data != "not_given" and geom_pitch_data != "not_given":
+            raise IOError("'twist' and 'geom_pitch' may not both be specified at once.")
+        if aero_pitch_data != "not_given" and geom_pitch_data != "not_given":
+            raise IOError("'aero_pitch' and 'geom_pitch' may not both be specified at once.")
 
         # Selig data file
         if selig_data != "not_given":
@@ -413,8 +432,6 @@ class BladeElementProp(BaseProp):
             twist_data = np.concatenate(1, (raw_zeta, raw_twist))
 
         # Chord
-        if chord_data == "not_given":
-            raise IOError("'chord' is not optional if 'geometry_file' is not given.")
         if isinstance(chord_data, tuple): # Elliptic distribution
             self.get_chord = self._build_elliptic_chord_dist(chord_data[1])
         if callable(chord_data):
@@ -423,22 +440,58 @@ class BladeElementProp(BaseProp):
             self.get_chord = self._build_getter_linear_f_of_span(chord_data, "chord", angular_data=False)
 
         # Set default twist of zero
-        if pitch_data == "not_given" and twist_data == "not_given":
+        if aero_pitch_data == "not_given" and twist_data == "not_given" and geom_pitch_data == "not_given":
             twist_data = 0.0
 
+        # Get beta from twist, aerodynamic pitch, or geometric pitch
         # Twist
         if twist_data != "not_given":
             if callable(twist_data):
-                self.get_twist = twist_data
+                def get_twist(zeta):
+                    return np.radians(twist_data(zeta))
+                self.get_twist = get_twist
             else:
                 self.get_twist = self._build_getter_linear_f_of_span(twist_data, "twist", angular_data=True)
 
-        # Pitch
-        if pitch_data != "not_given":
-            if callable(pitch_data):
-                self.get_pitch = pitch_data
+            # Make beta getter
+            def get_beta(zeta, aL0):
+                return self.get_twist(zeta)-aL0
+
+        # Aerodyanamic pitch
+        if aero_pitch_data != "not_given":
+            if callable(aero_pitch_data):
+                self.get_pitch = aero_pitch_data
             else:
-                self.get_pitch = self._build_getter_linear_f_of_span(pitch_data, "pitch", angular_data=False)
+                self.get_pitch = self._build_getter_linear_f_of_span(aero_pitch_data, "pitch", angular_data=False)
+
+            # Make beta getter
+            def get_beta(zeta, aL0):
+                K = self.get_pitch(zeta)/self.diameter
+                return np.arctan(K/(np.pi*zeta))
+
+        # Geometric pitch
+        if geom_pitch_data != "not_given":
+            if callable(geom_pitch_data):
+                self.get_pitch = geom_pitch_data
+            else:
+                self.get_pitch = self._build_getter_linear_f_of_span(geom_pitch_data, "pitch", angular_data=False)
+
+            # Make beta getter
+            def get_beta(zeta, aL0):
+
+                # Get geometric pitch ratio
+                K_c = self.get_pitch(zeta)/self.diameter
+
+                # Get aerodynamic pitch ratio
+                pi_zeta = np.pi*zeta
+                tan_aL0 = np.tan(aL0)
+                K = pi_zeta*(K_c-pi_zeta*tan_aL0)/(pi_zeta+K_c*tan_aL0)
+
+                # Get beta
+                return np.arctan(K/pi_zeta)
+
+        # Store beta getter
+        self.get_beta = get_beta
 
 
     def _build_getter_linear_f_of_span(self, data, name, angular_data=False, flip_sign=False):
@@ -590,17 +643,8 @@ class BladeElementProp(BaseProp):
     def _initialize_distributions(self):
         # Creates and stores vectors of important data at each control point
 
-        self.u_a_cp = self._get_axial_vec(self._zeta)
-        self.u_n_cp = self._get_normal_vec(self._zeta)
-        self.u_s_cp = self._get_span_vec(self._zeta)
-        self.u_a_cp_unswept = self._get_unswept_axial_vec(self._zeta)
-        self.u_n_cp_unswept = self._get_unswept_normal_vec(self._zeta)
-        self.u_s_cp_unswept = self._get_unswept_span_vec(self._zeta)
-        self.c_bar_cp = self._get_cp_avg_chord_lengths()
-        self.twist_cp = self.get_twist(self._zeta)
-        self.dihedral_cp = self.get_dihedral(self._zeta)
-        self.sweep_cp = self.get_sweep(self._zeta)
-        self.dS = abs(self.node_span_locs[1:]-self.node_span_locs[:-1])*self.b*self.c_bar_cp
+        self._c = self.get_chord(self._zeta)
+        self._c_hat_b = self.k*self._c/self.diameter
 
 
     def _airfoil_interpolator(self, interp_spans, sample_spans, coefs):
@@ -615,36 +659,138 @@ class BladeElementProp(BaseProp):
         return (1-d)*coefs[i,j]+d*coefs[i,j+1]
 
 
-    def get_cp_CLa(self, alpha, Rey, Mach):
-        """Returns the lift slope at each control point.
+    def get_torque_coef(self, w, V):
+        """Returns the torque coefficient for the prop at the given angular velocity and freestream velocity.
 
         Parameters
         ----------
-        alpha : ndarray
-            Angle of attack
+        w : float
+            Angular velocity of the prop in radians per second.
 
-        Rey : ndarray
-            Reynolds number
-
-        Mach : ndarray
-            Mach number
+        V : float
+            Freestream velocity in feet per second.
 
         Returns
         -------
         float
-            Lift slope
+            Torque coefficient.
         """
 
-        # Gather lift slopes
-        CLas = np.zeros((self._N,self._num_airfoils))
-        for j in range(self._num_airfoils):
-            CLas[:,j] = self._airfoils[j].get_CLa(alpha=alpha, Rey=Rey, Mach=Mach, trailing_flap_deflection=self._delta_flap, trailing_flap_fraction=self._cp_c_f)
+        # Initialize if necessary
+        if not (hasattr(self, "_w_curr") and self._w_curr==w and hasattr(self, "_V_curr") and self._V_curr==V):
+            self._determine_condition(w, V)
+        
 
-        # Interpolate
-        if self._num_airfoils == 1:
-            return CLas.flatten()
-        else:
-            return self._airfoil_interpolator(self._zeta, self._airfoil_spans, CLas)
+    def get_thrust_coef(self, w, V):
+        """Returns the thrust coefficient for the prop at the given angular velocity and freestream velocity.
+
+        Parameters
+        ----------
+        w : float
+            Angular velocity of the prop in radians per second.
+
+        V : float
+            Freestream velocity in feet per second.
+
+        Returns
+        -------
+        float
+            Thrust coefficient.
+        """
+
+        # Initialize if necessary
+        if not (hasattr(self, "_w_curr") and self._w_curr==w and hasattr(self, "_V_curr") and self._V_curr==V):
+            self._determine_condition(w, V)
+
+
+    def _determine_condition(self, w, V):
+        # Determines propeller conditions at the given angular velocity and freestream velocity
+
+        # Store w and V to reduce need to recalculate eps_ind
+        self._w_curr = w
+        self._V_curr = V
+
+        # Get atmospheric properties
+        rho = self._atmos.rho(self._h)
+        mu = self._atmos.mu(self._h)
+        a = self._atmos.a(self._h)
+        V_rot = self.diameter*self._zeta*w
+        V_tot = np.sqrt(V*V+V_rot*V_rot)
+        self._Re = V_tot*self._c*rho/mu
+        self._M = V_tot/a
+
+        # Get beta
+        self._aL0 = self.get_cp_aL0(self._Re, self._M)
+        self._beta = self.get_beta(self._zeta, self._aL0)
+
+        # Get advance ratio
+        self._J = 2.0*np.pi*V/(w*self.diameter)
+
+        # Get angles
+        self._eps_inf = np.arctan(self._J/(np.pi*self._zeta))
+        self._calc_ind_angle()
+        self._alpha_B = self._beta-self._eps_inf-self._esp_ind
+
+        # Determine lift and drag coefficients
+        self._CL = self.get_cp_CL(self._alpha_B+self._aL0, self._Re, self._M)
+        self._CD = self.get_cp_CD(self._alpha_B+self._aL0, self._Re, self._M)
+
+
+    def _calc_ind_angle(self):
+        # Determined the induced angle at each control point
+
+        # Initialize secant method
+        self._esp_ind = np.zeros_like(self._zeta)
+        max_err = 1e-10
+        iterations = 0
+        max_iterations = 100
+
+        # Initial guesses
+        e0 = 0.5*(self._beta-self._eps_inf)
+        e1 = 1.1*e0
+        
+        #Initialize other necessary arrays
+        f0 = np.zeros(self._N)
+        f1 = np.zeros(self._N)
+        e2 = np.zeros(self._N)
+        a0 = self._beta-self._eps_inf-e0
+        a1 = np.zeros(self._N)
+        A = np.arccos(np.exp(-self.k*(1-self._zeta)/(2*np.sin(self._beta[-1]))))
+        CL0 = self.get_cp_CL(a0+self._aL0, self._Re, self._M)
+        f0 = 0.125*self._c_hat_b/self._zeta*CL0-A*np.tan(e0)*np.sin(self._eps_inf+e0)
+        
+        # Initialize non-converged point indices
+        pos = np.where(e1==e1)
+
+        #Iterate until each point converges
+        while pos[0].size > 0 and iterations > max_iterations:
+            
+            iterations += 1
+            a1[pos] = self._beta[pos]-self._eps_inf[pos]-e1[pos]
+
+            #Create a new estimate for the induced angle
+            CL1 = self.get_cp_CL(a1+self._aL0, self._Re, self._M)
+            f1[pos] = 0.125*self._c_hat_b[pos]/self._zeta[pos]*CL1[pos]-A[pos]*np.tan(e1[pos])*np.sin(self._eps_inf[pos]+e1[pos])
+
+            e2[pos] = e1[pos]-f1[pos]*(e1[pos]-e0[pos])/(f1[pos]-f0[pos])
+            
+            
+            #Check for an acceptable value for the induced angle
+            e2[e2 >= np.pi/2] = 0.03
+            e2[e2 <= -np.pi/2] = -0.03
+            e2 = abs(e2)*np.sign(self._beta-self._eps_inf)
+
+            #Determine which points have not yet converged
+            pos = np.where(abs((e2 - e1)/e2) > max_err)
+            print(pos)
+
+            #Set values for the next iteration
+            e0 = copy.deepcopy(e1)
+            e1 = copy.deepcopy(e2)
+            f0 = copy.deepcopy(f1)
+
+        # Store final result
+        self._eps_ind = e2
 
 
     def get_cp_aL0(self, Rey, Mach):
@@ -667,77 +813,13 @@ class BladeElementProp(BaseProp):
         # Gather zero-lift angles of attack
         aL0s = np.zeros((self._N,self._num_airfoils))
         for j in range(self._num_airfoils):
-            aL0s[:,j] = self._airfoils[j].get_aL0(Rey=Rey, Mach=Mach, trailing_flap_deflection=self._delta_flap, trailing_flap_fraction=self._cp_c_f)
+            aL0s[:,j] = self._airfoils[j].get_aL0(Rey=Rey, Mach=Mach)
 
         # Interpolate
         if self._num_airfoils == 1:
             return aL0s.flatten()
         else:
             return self._airfoil_interpolator(self._zeta, self._airfoil_spans, aL0s)
-
-
-    def get_cp_CLRe(self, alpha, Rey, Mach):
-        """Returns the derivative of the lift coefficient with respect to Reynolds number at each control point
-
-        Parameters
-        ----------
-        alpha : ndarray
-            Angle of attack
-
-        Rey : ndarray
-            Reynolds number
-
-        Mach : ndarray
-            Mach number
-
-        Returns
-        -------
-        float
-            Z
-        """
-
-        # Gather Reynolds slopes
-        CLRes = np.zeros((self._N,self._num_airfoils))
-        for j in range(self._num_airfoils):
-            CLRes[:,j] = self._airfoils[j].get_CLRe(alpha=alpha, Rey=Rey, Mach=Mach, trailing_flap_deflection=self._delta_flap, trailing_flap_fraction=self._cp_c_f)
-
-        # Interpolate
-        if self._num_airfoils == 1:
-            return CLRes.flatten()
-        else:
-            return self._airfoil_interpolator(self._zeta, self._airfoil_spans, CLRes)
-
-    
-    def get_cp_CLM(self, alpha, Rey, Mach):
-        """Returns the derivative of the lift coefficient with respect to Mach number at each control point
-
-        Parameters
-        ----------
-        alpha : ndarray
-            Angle of attack
-
-        Rey : ndarray
-            Reynolds number
-
-        Mach : ndarray
-            Mach number
-
-        Returns
-        -------
-        float
-            Z
-        """
-
-        # Get Mach slopes
-        CLMs = np.zeros((self._N,self._num_airfoils))
-        for j in range(self._num_airfoils):
-            CLMs[:,j] = self._airfoils[j].get_CLM(alpha=alpha, Rey=Rey, Mach=Mach, trailing_flap_deflection=self._delta_flap, trailing_flap_fraction=self._cp_c_f)
-
-        # Interpolate
-        if self._num_airfoils == 1:
-            return CLMs.flatten()
-        else:
-            return self._airfoil_interpolator(self._zeta, self._airfoil_spans, CLMs)
 
 
     def get_cp_CL(self, alpha, Rey, Mach):
@@ -763,7 +845,7 @@ class BladeElementProp(BaseProp):
         # Get CL
         CLs = np.zeros((self._N,self._num_airfoils))
         for j in range(self._num_airfoils):
-            CLs[:,j] = self._airfoils[j].get_CL(alpha=alpha, Rey=Rey, Mach=Mach, trailing_flap_deflection=self._delta_flap, trailing_flap_fraction=self._cp_c_f)
+            CLs[:,j] = self._airfoils[j].get_CL(alpha=alpha, Rey=Rey, Mach=Mach)
 
         # Interpolate
         if self._num_airfoils == 1:
@@ -795,7 +877,7 @@ class BladeElementProp(BaseProp):
         # Get CD
         CDs = np.zeros((self._N,self._num_airfoils))
         for j in range(self._num_airfoils):
-            CDs[:,j] = self._airfoils[j].get_CD(alpha=alpha, Rey=Rey, Mach=Mach, trailing_flap_deflection=self._delta_flap, trailing_flap_fraction=self._cp_c_f)
+            CDs[:,j] = self._airfoils[j].get_CD(alpha=alpha, Rey=Rey, Mach=Mach)
 
         # Interpolate
         if self._num_airfoils == 1:
@@ -827,7 +909,7 @@ class BladeElementProp(BaseProp):
         # Get Cm
         Cms = np.zeros((self._N,self._num_airfoils))
         for j in range(self._num_airfoils):
-            Cms[:,j] = self._airfoils[j].get_Cm(alpha=alpha, Rey=Rey, Mach=Mach, trailing_flap_deflection=self._delta_flap, trailing_flap_fraction=self._cp_c_f)
+            Cms[:,j] = self._airfoils[j].get_Cm(alpha=alpha, Rey=Rey, Mach=Mach)
 
         # Interpolate
         if self._num_airfoils == 1:
@@ -915,23 +997,12 @@ class BladeElementProp(BaseProp):
         return vectors
 
 
-    def _get_airfoil_outline_coords_at_span(self, span, _N, close_te):
+    def _get_airfoil_outline_coords_at_span(self, span, N, close_te):
         # Returns the airfoil section outline in body-fixed coordinates at the specified span fraction with the specified number of points
-
-        # Determine flap deflection and fraction at this point
-        if self._has_control_surface and span >= self._cntrl_root_span and span <= self._cntrl_tip_span:
-            if self.side == "left":
-                d_f = np.interp(span, self._zeta[::-1], self._delta_flap[::-1])
-            else:
-                d_f = np.interp(span, self._zeta, self._delta_flap)
-            c_f = self.get_c_f(span)
-        else:
-            d_f = 0.0
-            c_f = 0.0
 
         # Linearly interpolate outlines, ignoring twist, etc for now
         if self._num_airfoils == 1:
-            points = self._airfoils[0].get_outline_points(_N=_N, trailing_flap_deflection=d_f, trailing_flap_fraction=c_f, close_te=close_te)
+            points = self._airfoils[0].get_outline_points(N=N, close_te=close_te)
         else:
             index = 0
             while True:
@@ -943,8 +1014,8 @@ class BladeElementProp(BaseProp):
                     tip_weight = 1-abs(span-self._airfoil_spans[index+1])/total_span
 
                     # Get outlines
-                    root_outline = self._airfoils[index].get_outline_points(_N=_N, trailing_flap_deflection=d_f, trailing_flap_fraction=c_f, close_te=close_te)
-                    tip_outline = self._airfoils[index+1].get_outline_points(_N=_N, trailing_flap_deflection=d_f, trailing_flap_fraction=c_f, close_te=close_te)
+                    root_outline = self._airfoils[index].get_outline_points(N=N, close_te=close_te)
+                    tip_outline = self._airfoils[index+1].get_outline_points(N=N, close_te=close_te)
 
                     # Interpolate
                     points = root_weight*root_outline+tip_weight*tip_outline
