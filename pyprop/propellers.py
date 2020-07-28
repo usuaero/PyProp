@@ -487,6 +487,11 @@ class BladeElementProp(BaseProp):
                 pi_zeta = np.pi*zeta
                 tan_aL0 = np.tan(aL0)
                 K = pi_zeta*(K_c-pi_zeta*tan_aL0)/(pi_zeta+K_c*tan_aL0)
+                #if (K_c == 0.5).all():
+                #    plt.figure()
+                #    plt.plot(self._zeta, K_c)
+                #    plt.plot(self._zeta, K)
+                #    plt.show()
 
                 # Get beta
                 return np.arctan(K/pi_zeta)
@@ -797,7 +802,7 @@ class BladeElementProp(BaseProp):
         pos = np.where(e1==e1)
 
         #Iterate until each point converges
-        while pos[0].size > 0 and iterations > max_iterations:
+        while pos[0].size > 0 and iterations < max_iterations:
             
             iterations += 1
             a1[pos] = self._beta[pos]-self._eps_inf[pos]-e1[pos]
@@ -805,9 +810,7 @@ class BladeElementProp(BaseProp):
             #Create a new estimate for the induced angle
             CL1 = self.get_cp_CL(a1+self._aL0, self._Re, self._M)
             f1[pos] = 0.125*self._c_hat_b[pos]/self._zeta[pos]*CL1[pos]-A[pos]*np.tan(e1[pos])*np.sin(self._eps_inf[pos]+e1[pos])
-
             e2[pos] = e1[pos]-f1[pos]*(e1[pos]-e0[pos])/(f1[pos]-f0[pos])
-            
             
             #Check for an acceptable value for the induced angle
             e2[e2 >= np.pi/2] = 0.03
@@ -816,7 +819,6 @@ class BladeElementProp(BaseProp):
 
             #Determine which points have not yet converged
             pos = np.where(abs((e2 - e1)/e2) > max_err)
-            print(pos)
 
             #Set values for the next iteration
             e0 = copy.deepcopy(e1)
@@ -825,6 +827,35 @@ class BladeElementProp(BaseProp):
 
         # Store final result
         self._eps_ind = e2
+
+
+    def plot_angles_over_zeta(self, w, V):
+        """Plots the aerodynamic pitch angle, the induced angle of attack, the downwash angle,
+        and the local angle of attack as a function of distance along the blade.
+
+        Parameters
+        ----------
+        w : float
+            Angular velocity in rad/s.
+
+        V : float
+            Forward velocity in ft/s.
+        """
+
+        # Initialize if necessary
+        if not (hasattr(self, "_w_curr") and self._w_curr==w and hasattr(self, "_V_curr") and self._V_curr==V):
+            self._determine_condition(w, V)
+
+        # Make plot
+        plt.figure()
+        plt.plot(self._zeta, np.degrees(self._beta), label="Beta")
+        plt.plot(self._zeta, np.degrees(self._eps_ind), label="E_ind")
+        plt.plot(self._zeta, np.degrees(self._eps_inf), label="E_inf")
+        plt.plot(self._zeta, np.degrees(self._alpha_B), label="alpha")
+        plt.xlabel("Zeta")
+        plt.ylabel("Angle [deg]")
+        plt.legend()
+        plt.show()
 
 
     def get_cp_aL0(self, Rey, Mach):

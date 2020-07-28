@@ -17,7 +17,7 @@ def airfoil_Cm(**kwargs):
 def airfoil_CD(**kwargs):
     alpha = kwargs.get("alpha", 0.0)
     a_b = np.asarray(alpha+np.radians(2.1))
-    return np.where(a_b <= 0.25, 0.224*a_b**2+0.006, np.where(a_b <= 0.3, 16.6944*a_b**2-1.0234, 0.5*np.pi*np.sin(a_b)/np.cos(a_b)))
+    return np.where(a_b <= 0.25, 0.224*a_b**2+0.006, np.where(a_b <= 0.3, 16.6944*a_b**2-1.0234, 0.5*np.pi*np.sin(a_b)/np.cos(0.25)))
 
 # Declare prop input
 phillips_prop = {
@@ -31,14 +31,14 @@ phillips_prop = {
     },
     "geometry" : {
         "n_blades" : 2,
-        "hub_radius" : 0.1,
+        "hub_radius" : 0.05,
         "weight" : 4.0,
         "diameter" : 1.0,
         "geom_pitch" : 0.5,
         "chord" : ["elliptic", 0.075],
         "rotation" : "CCW",
         "airfoil" : "phillips",
-        "grid" : 50
+        "grid" : 100
     }
 }
 
@@ -63,6 +63,12 @@ for i, K_c in enumerate(K_cs):
         V = prop.get_velocity(to_rpm(w), J)
         C_T[i,j] = prop.get_thrust_coef(w, V)
         C_P[i,j] = prop.get_power_coef(w, V)
+
+    # Create figure 2.3.5
+    if K_c == 0.5:
+        prop.plot_angles_over_zeta(w, 0.0)
+        V = prop.get_velocity(to_rpm(w), 0.25)
+        prop.plot_angles_over_zeta(w, V)
 
 # Calculate efficiency
 eta = C_T*Js[np.newaxis,:]/C_P
