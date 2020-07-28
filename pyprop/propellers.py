@@ -349,7 +349,7 @@ class BladeElementProp(BaseProp):
         geom_dict = self._input_dict["geometry"]
         self.diameter = import_value("diameter", geom_dict, "English", None)
         self.k = self._input_dict["geometry"]["n_blades"]
-        self._r_hub = import_value("hub_radius", geom_dict, "English", 0.0)
+        self._r_hub = import_value("hub_radius", geom_dict, "English", 0.00001)
         self.weight = import_value("weight", geom_dict, "English", 0.0)
         self._rot_dir = geom_dict.get("rotation", "CW")
         self._h = import_value("altitude", self._input_dict, "English", 0.0)
@@ -681,10 +681,10 @@ class BladeElementProp(BaseProp):
         if not (hasattr(self, "_w_curr") and self._w_curr==w and hasattr(self, "_V_curr") and self._V_curr==V):
             self._determine_condition(w, V)
         
-        dCf = self._CD*np.cos(self._eps_inf+self._eps_ind)+self._CL*np.sin(self._eps_inf+self._eps_ind)
-        dCl = self._zeta**3*self._c_hat_b*(np.cos(self._eps_ind)/np.cos(self._eps_inf))**2*dCf
+        dCf = self._CD*self._C_e+self._CL*self._S_e
+        dCl = self._zeta*self._zeta*self._zeta*self._c_hat_b*self._R_ind*self._R_ind*dCf
         
-        return 0.125*np.pi**2*integrate.simps(dCl, self._zeta)
+        return 0.125*np.pi*np.pi*integrate.simps(dCl, self._zeta)
         
 
     def get_thrust_coef(self, w, V):
@@ -708,10 +708,10 @@ class BladeElementProp(BaseProp):
         if not (hasattr(self, "_w_curr") and self._w_curr==w and hasattr(self, "_V_curr") and self._V_curr==V):
             self._determine_condition(w, V)
 
-        dCf = self._CL*np.cos(self._eps_inf + self._eps_ind) - self._CD*np.sin(self._eps_inf + self._eps_ind)
-        dCt = self._zeta**2*self._c_hat_b*(np.cos(self._eps_ind)/np.cos(self._eps_inf))**2*dCf
+        dCf = self._CL*self._C_e-self._CD*self._S_e
+        dCt = self._zeta*self._zeta*self._c_hat_b*self._R_ind*self._R_ind*dCf
         
-        return 0.25*np.pi**2*integrate.simps(dCt, self._zeta)
+        return 0.25*np.pi*np.pi*integrate.simps(dCt, self._zeta)
 
 
     def _determine_condition(self, w, V):
@@ -734,13 +734,17 @@ class BladeElementProp(BaseProp):
         self._aL0 = self.get_cp_aL0(self._Re, self._M)
         self._beta = self.get_beta(self._zeta, self._aL0)
 
-        # Get advance ratio
+        # Get advance ratio and freestream angle
         self._J = 2.0*np.pi*V/(w*self.diameter)
+        self._eps_inf = np.arctan(self._J/(np.pi*self._zeta))
 
         # Get angles
-        self._eps_inf = np.arctan(self._J/(np.pi*self._zeta))
         self._calc_ind_angle()
-        self._alpha_B = self._beta-self._eps_inf-self._esp_ind
+        self._alpha_B = self._beta-self._eps_inf-self._eps_ind
+        self._R_ind = np.cos(self._eps_ind)/np.cos(self._eps_inf)
+        self._e = self._eps_inf+self._eps_ind
+        self._S_e = np.sin(self._e)
+        self._C_e = np.cos(self._e)
 
         # Determine lift and drag coefficients
         self._CL = self.get_cp_CL(self._alpha_B+self._aL0, self._Re, self._M)
@@ -751,7 +755,7 @@ class BladeElementProp(BaseProp):
         # Determined the induced angle at each control point
 
         # Initialize secant method
-        self._esp_ind = np.zeros_like(self._zeta)
+        self._eps_ind = np.zeros_like(self._zeta)
         max_err = 1e-10
         iterations = 0
         max_iterations = 100
@@ -929,246 +933,246 @@ class BladeElementProp(BaseProp):
             return self._airfoil_interpolator(self._zeta, self._airfoil_spans, Cms)
 
 
-    def get_outline_points(self):
-        """Returns a set of points that represents the planar outline of the blade.
-        
-        Returns
-        -------
-        ndarray
-            Array of outline points.
-        """
-        zetas = np.linspace(self._zeta_hub, 1.0, 3*self._N)
-        chords = self.get_chord(zetas)
-        twists = self.get_twist(zetas)
-
-        # Spanwise locations
-        points = np.zeros((self._N*6+1,2))
-        points[:self._N,0] = zetas*self.diameter
-        points[-2:self._N-1:-1,1] = zetas*self.diameter
-
-        # Leading edge
-        points[:self._N,1] = 0.25*np.cos(twists)*chords
-
-        # Trailing edge
-        points[-2:self._N-1:-1,1] = -0.75*np.cos(twists)*chords
-
-        # Complete the circle
-        points[-1,:] = points[0,:]
-        return points
-
-
-    def get_stl_vectors(self, **kwargs):
-        """Calculates and returns the outline vectors required for 
-        generating an .stl model of the wing segment.
-
-        Parameters
-        ----------
-        section_resolution : int, optional
-            Number of points to use in distcretizing the airfoil sections. Defaults to 200.
-
-        close_te : bool, optional
-            Whether to force the trailing edge to be sealed. Defaults to true
-
-        Returns
-        -------
-        ndarray
-            Array of outline vectors. First index is the facet index, second is the point
-            index, third is the vector components.
-        """
-
-        # Discretize by node locations
-        section_res = kwargs.get("section_resolution", 200)
-        close_te = kwargs.get("close_te", True)
-        num_facets = self._N*(section_res-1)*2
-        vectors = np.zeros((num_facets*3,3))
-
-        # Generate vectors
-        for i in range(self._N):
-
-            # Root-ward node
-            root_span = self.node_span_locs[i]
-            root_outline = self._get_airfoil_outline_coords_at_span(root_span, section_res, close_te)
-
-            # Tip-ward node
-            tip_span = self.node_span_locs[i+1]
-            tip_outline = self._get_airfoil_outline_coords_at_span(tip_span, section_res, close_te)
-
-            # Create facets between the outlines
-            for j in range(section_res-1):
-                index = (2*i*(section_res-1)+2*j)*3
-
-                vectors[index] = root_outline[j]
-                vectors[index+1] = tip_outline[j+1]
-                vectors[index+2] = tip_outline[j]
-
-                vectors[index+3] = tip_outline[j+1]
-                vectors[index+4] = root_outline[j]
-                vectors[index+5] = root_outline[j+1]
-
-        return vectors
-
-
-    def _get_airfoil_outline_coords_at_span(self, span, N, close_te):
-        # Returns the airfoil section outline in body-fixed coordinates at the specified span fraction with the specified number of points
-
-        # Linearly interpolate outlines, ignoring twist, etc for now
-        if self._num_airfoils == 1:
-            points = self._airfoils[0].get_outline_points(N=N, close_te=close_te)
-        else:
-            index = 0
-            while True:
-                if span >= self._airfoil_spans[index] and span <= self._airfoil_spans[index+1]:
-                    total_span = self._airfoil_spans[index+1]-self._airfoil_spans[index]
-
-                    # Get weights
-                    root_weight = 1-abs(span-self._airfoil_spans[index])/total_span
-                    tip_weight = 1-abs(span-self._airfoil_spans[index+1])/total_span
-
-                    # Get outlines
-                    root_outline = self._airfoils[index].get_outline_points(N=N, close_te=close_te)
-                    tip_outline = self._airfoils[index+1].get_outline_points(N=N, close_te=close_te)
-
-                    # Interpolate
-                    points = root_weight*root_outline+tip_weight*tip_outline
-                    break
-
-                index += 1
-
-        # Get twist, dihedral, and chord
-        twist = self.get_twist(span)
-        dihedral = self.get_dihedral(span)
-        chord = self.get_chord(span)
-
-        # Scale to chord and transform to body-fixed coordinates
-        if self._shear_dihedral:
-            q = euler_to_quat(np.array([0.0, twist, 0.0]))
-        else:
-            q = euler_to_quat(np.array([dihedral, twist, 0.0]))
-        untransformed_coords = chord*np.array([-points[:,0].flatten()+0.25, np.zeros(_N), -points[:,1]]).T
-        coords = self._get_quarter_chord_loc(span)[np.newaxis]+quat_inv_trans(q, untransformed_coords)
-
-        # Seal trailing edge
-        te = (coords[0]+coords[-1])*0.5
-        coords[0] = te
-        coords[-1] = te
-
-        return coords
-
-
-    def export_stp(self, **kwargs):
-        """Creates a FreeCAD part representing a loft of the wing segment.
-
-        Parameters
-        ----------
-        airplane_name: str
-            Name of the airplane this segment belongs to.
-
-        file_tag : str, optional
-            Optional tag to prepend to output filename default. The output files will be named "<AIRCRAFT_NAME>_<WING_NAME>.stp".
-
-        section_resolution : int
-            Number of outline points to use for the sections. Defaults to 200.
-        
-        spline : bool, optional
-            Whether the wing segment sections should be represented using splines. This can cause issues with some geometries/CAD 
-            packages. Defaults to False.
-
-        maintain_sections : bool, optional
-            Whether the wing segment sections should be preserved in the loft. Defaults to True.
-
-        close_te : bool, optional
-            Whether to force the trailing edge to be sealed. Defaults to true
-        """
-
-        # Import necessary modules
-        import FreeCAD
-        import Part
-
-        # Kwargs
-        airplane_name = kwargs.get("airplane_name")
-        file_tag = kwargs.get("file_tag", "")
-        section_resolution = kwargs.get("section_resolution", 200)
-        spline = kwargs.get("spline", False)
-        maintain_sections = kwargs.get("maintain_sections", True)
-        close_te = kwargs.get("close_te", True)
-
-        # Create sections
-        sections = []
-        for s_i in self.node_span_locs:
-            points = []
-
-            # Get outline points
-            outline = self._get_airfoil_outline_coords_at_span(s_i, section_resolution, close_te)
-
-            # Check for wing going to a point
-            if np.all(np.all(outline == outline[0,:])):
-                #tip = FreeCAD.Base.Vector(*outline[0])
-                #points.append(tip)
-                #continue
-                #TODO loft to an actual point
-                outline = self._get_airfoil_outline_coords_at_span(s_i-0.000001, section_resolution, close_te)
-
-            # Create outline points
-            for point in outline:
-                points.append(FreeCAD.Base.Vector(*point))
-
-            # Add to section list
-            if not spline: # Use polygon
-                section_polygon = Part.makePolygon(points)
-                sections.append(section_polygon)
-            else: # Use spline
-                section_spline = Part.BSplineCurve(points)
-                sections.append(section_spline.toShape())
-
-        # Loft
-        wing_loft = Part.makeLoft(sections, True, maintain_sections, False).Faces
-        wing_shell = Part.Shell(wing_loft)
-        wing_solid = Part.Solid(wing_shell)
-
-        # Export
-        abs_path = os.path.abspath("{0}{1}_{2}.stp".format(file_tag, airplane_name, self.name))
-        wing_solid.exportStep(abs_path)
-
-
-    def export_dxf(self, airplane_name, **kwargs):
-        """Creates a dxf representing successive sections of the wing segment.
-
-        Parameters
-        ----------
-        airplane_name: str
-            Name of the airplane this segment belongs to.
-
-        file_tag : str, optional
-            Optional tag to prepend to output filename default. The output files will be named "<AIRCRAFT_NAME>_<WING_NAME>.stp".
-
-        section_resolution : int
-            Number of outline points to use for the sections. Defaults to 200.
-
-        close_te : bool, optional
-            Whether to force the trailing edge to be sealed. Defaults to true
-        """
-
-        # Get kwargs
-        file_tag = kwargs.get("file_tag", "")
-        section_res = kwargs.get("section_resolution", 200)
-        close_te = kwargs.get("close_te", True)
-
-        # Initialize arrays
-        X = np.zeros((self._N+1, section_res))
-        Y = np.zeros((self._N+1, section_res))
-        Z = np.zeros((self._N+1, section_res))
-
-        # Fill arrays
-        for i, s_i in enumerate(self.node_span_locs):
-
-            # Get outline points
-            outline = self._get_airfoil_outline_coords_at_span(s_i, section_res, close_te)
-
-            # Store in arrays
-            X[i,:] = outline[:,0]
-            Y[i,:] = outline[:,1]
-            Z[i,:] = outline[:,2]
-
-        # Export
-        abs_path = os.path.abspath("{0}{1}_{2}.dxf".format(file_tag, airplane_name, self.name))
-        dxf_spline(abs_path, X, Y, Z)
+#    def get_outline_points(self):
+#        """Returns a set of points that represents the planar outline of the blade.
+#        
+#        Returns
+#        -------
+#        ndarray
+#            Array of outline points.
+#        """
+#        zetas = np.linspace(self._zeta_hub, 1.0, 3*self._N)
+#        chords = self.get_chord(zetas)
+#        twists = self.get_twist(zetas)
+#
+#        # Spanwise locations
+#        points = np.zeros((self._N*6+1,2))
+#        points[:self._N,0] = zetas*self.diameter
+#        points[-2:self._N-1:-1,1] = zetas*self.diameter
+#
+#        # Leading edge
+#        points[:self._N,1] = 0.25*np.cos(twists)*chords
+#
+#        # Trailing edge
+#        points[-2:self._N-1:-1,1] = -0.75*np.cos(twists)*chords
+#
+#        # Complete the circle
+#        points[-1,:] = points[0,:]
+#        return points
+#
+#
+#    def get_stl_vectors(self, **kwargs):
+#        """Calculates and returns the outline vectors required for 
+#        generating an .stl model of the wing segment.
+#
+#        Parameters
+#        ----------
+#        section_resolution : int, optional
+#            Number of points to use in distcretizing the airfoil sections. Defaults to 200.
+#
+#        close_te : bool, optional
+#            Whether to force the trailing edge to be sealed. Defaults to true
+#
+#        Returns
+#        -------
+#        ndarray
+#            Array of outline vectors. First index is the facet index, second is the point
+#            index, third is the vector components.
+#        """
+#
+#        # Discretize by node locations
+#        section_res = kwargs.get("section_resolution", 200)
+#        close_te = kwargs.get("close_te", True)
+#        num_facets = self._N*(section_res-1)*2
+#        vectors = np.zeros((num_facets*3,3))
+#
+#        # Generate vectors
+#        for i in range(self._N):
+#
+#            # Root-ward node
+#            root_span = self.node_span_locs[i]
+#            root_outline = self._get_airfoil_outline_coords_at_span(root_span, section_res, close_te)
+#
+#            # Tip-ward node
+#            tip_span = self.node_span_locs[i+1]
+#            tip_outline = self._get_airfoil_outline_coords_at_span(tip_span, section_res, close_te)
+#
+#            # Create facets between the outlines
+#            for j in range(section_res-1):
+#                index = (2*i*(section_res-1)+2*j)*3
+#
+#                vectors[index] = root_outline[j]
+#                vectors[index+1] = tip_outline[j+1]
+#                vectors[index+2] = tip_outline[j]
+#
+#                vectors[index+3] = tip_outline[j+1]
+#                vectors[index+4] = root_outline[j]
+#                vectors[index+5] = root_outline[j+1]
+#
+#        return vectors
+#
+#
+#    def _get_airfoil_outline_coords_at_span(self, span, N, close_te):
+#        # Returns the airfoil section outline in body-fixed coordinates at the specified span fraction with the specified number of points
+#
+#        # Linearly interpolate outlines, ignoring twist, etc for now
+#        if self._num_airfoils == 1:
+#            points = self._airfoils[0].get_outline_points(N=N, close_te=close_te)
+#        else:
+#            index = 0
+#            while True:
+#                if span >= self._airfoil_spans[index] and span <= self._airfoil_spans[index+1]:
+#                    total_span = self._airfoil_spans[index+1]-self._airfoil_spans[index]
+#
+#                    # Get weights
+#                    root_weight = 1-abs(span-self._airfoil_spans[index])/total_span
+#                    tip_weight = 1-abs(span-self._airfoil_spans[index+1])/total_span
+#
+#                    # Get outlines
+#                    root_outline = self._airfoils[index].get_outline_points(N=N, close_te=close_te)
+#                    tip_outline = self._airfoils[index+1].get_outline_points(N=N, close_te=close_te)
+#
+#                    # Interpolate
+#                    points = root_weight*root_outline+tip_weight*tip_outline
+#                    break
+#
+#                index += 1
+#
+#        # Get twist, dihedral, and chord
+#        twist = self.get_twist(span)
+#        dihedral = self.get_dihedral(span)
+#        chord = self.get_chord(span)
+#
+#        # Scale to chord and transform to body-fixed coordinates
+#        if self._shear_dihedral:
+#            q = euler_to_quat(np.array([0.0, twist, 0.0]))
+#        else:
+#            q = euler_to_quat(np.array([dihedral, twist, 0.0]))
+#        untransformed_coords = chord*np.array([-points[:,0].flatten()+0.25, np.zeros(_N), -points[:,1]]).T
+#        coords = self._get_quarter_chord_loc(span)[np.newaxis]+quat_inv_trans(q, untransformed_coords)
+#
+#        # Seal trailing edge
+#        te = (coords[0]+coords[-1])*0.5
+#        coords[0] = te
+#        coords[-1] = te
+#
+#        return coords
+#
+#
+#    def export_stp(self, **kwargs):
+#        """Creates a FreeCAD part representing a loft of the wing segment.
+#
+#        Parameters
+#        ----------
+#        airplane_name: str
+#            Name of the airplane this segment belongs to.
+#
+#        file_tag : str, optional
+#            Optional tag to prepend to output filename default. The output files will be named "<AIRCRAFT_NAME>_<WING_NAME>.stp".
+#
+#        section_resolution : int
+#            Number of outline points to use for the sections. Defaults to 200.
+#        
+#        spline : bool, optional
+#            Whether the wing segment sections should be represented using splines. This can cause issues with some geometries/CAD 
+#            packages. Defaults to False.
+#
+#        maintain_sections : bool, optional
+#            Whether the wing segment sections should be preserved in the loft. Defaults to True.
+#
+#        close_te : bool, optional
+#            Whether to force the trailing edge to be sealed. Defaults to true
+#        """
+#
+#        # Import necessary modules
+#        import FreeCAD
+#        import Part
+#
+#        # Kwargs
+#        airplane_name = kwargs.get("airplane_name")
+#        file_tag = kwargs.get("file_tag", "")
+#        section_resolution = kwargs.get("section_resolution", 200)
+#        spline = kwargs.get("spline", False)
+#        maintain_sections = kwargs.get("maintain_sections", True)
+#        close_te = kwargs.get("close_te", True)
+#
+#        # Create sections
+#        sections = []
+#        for s_i in self.node_span_locs:
+#            points = []
+#
+#            # Get outline points
+#            outline = self._get_airfoil_outline_coords_at_span(s_i, section_resolution, close_te)
+#
+#            # Check for wing going to a point
+#            if np.all(np.all(outline == outline[0,:])):
+#                #tip = FreeCAD.Base.Vector(*outline[0])
+#                #points.append(tip)
+#                #continue
+#                #TODO loft to an actual point
+#                outline = self._get_airfoil_outline_coords_at_span(s_i-0.000001, section_resolution, close_te)
+#
+#            # Create outline points
+#            for point in outline:
+#                points.append(FreeCAD.Base.Vector(*point))
+#
+#            # Add to section list
+#            if not spline: # Use polygon
+#                section_polygon = Part.makePolygon(points)
+#                sections.append(section_polygon)
+#            else: # Use spline
+#                section_spline = Part.BSplineCurve(points)
+#                sections.append(section_spline.toShape())
+#
+#        # Loft
+#        wing_loft = Part.makeLoft(sections, True, maintain_sections, False).Faces
+#        wing_shell = Part.Shell(wing_loft)
+#        wing_solid = Part.Solid(wing_shell)
+#
+#        # Export
+#        abs_path = os.path.abspath("{0}{1}_{2}.stp".format(file_tag, airplane_name, self.name))
+#        wing_solid.exportStep(abs_path)
+#
+#
+#    def export_dxf(self, airplane_name, **kwargs):
+#        """Creates a dxf representing successive sections of the wing segment.
+#
+#        Parameters
+#        ----------
+#        airplane_name: str
+#            Name of the airplane this segment belongs to.
+#
+#        file_tag : str, optional
+#            Optional tag to prepend to output filename default. The output files will be named "<AIRCRAFT_NAME>_<WING_NAME>.stp".
+#
+#        section_resolution : int
+#            Number of outline points to use for the sections. Defaults to 200.
+#
+#        close_te : bool, optional
+#            Whether to force the trailing edge to be sealed. Defaults to true
+#        """
+#
+#        # Get kwargs
+#        file_tag = kwargs.get("file_tag", "")
+#        section_res = kwargs.get("section_resolution", 200)
+#        close_te = kwargs.get("close_te", True)
+#
+#        # Initialize arrays
+#        X = np.zeros((self._N+1, section_res))
+#        Y = np.zeros((self._N+1, section_res))
+#        Z = np.zeros((self._N+1, section_res))
+#
+#        # Fill arrays
+#        for i, s_i in enumerate(self.node_span_locs):
+#
+#            # Get outline points
+#            outline = self._get_airfoil_outline_coords_at_span(s_i, section_res, close_te)
+#
+#            # Store in arrays
+#            X[i,:] = outline[:,0]
+#            Y[i,:] = outline[:,1]
+#            Z[i,:] = outline[:,2]
+#
+#        # Export
+#        abs_path = os.path.abspath("{0}{1}_{2}.dxf".format(file_tag, airplane_name, self.name))
+#        dxf_spline(abs_path, X, Y, Z)
