@@ -435,7 +435,7 @@ class BladeElementProp(BaseProp):
         # Chord
         if isinstance(chord_data, tuple): # Elliptic distribution
             self.get_chord = self._build_elliptic_chord_dist(chord_data[1])
-        if callable(chord_data):
+        elif callable(chord_data):
             self.get_chord = chord_data
         else:
             self.get_chord = self._build_getter_linear_f_of_span(chord_data, "chord", angular_data=False)
@@ -714,6 +714,25 @@ class BladeElementProp(BaseProp):
         return 0.25*np.pi*np.pi*integrate.simps(dCt, self._zeta)
 
 
+    def get_power_coef(self, w, V):
+        """Returns the power coefficient for the prop at the given angular velocity and freestream velocity.
+
+        Parameters
+        ----------
+        w : float
+            Angular velocity of the prop in radians per second.
+
+        V : float
+            Freestream velocity in feet per second.
+
+        Returns
+        -------
+        float
+            Power coefficient.
+        """
+        return 2.0*np.pi*self.get_torque_coef(w, V)
+
+
     def _determine_condition(self, w, V):
         # Determines propeller conditions at the given angular velocity and freestream velocity
 
@@ -770,7 +789,7 @@ class BladeElementProp(BaseProp):
         e2 = np.zeros(self._N)
         a0 = self._beta-self._eps_inf-e0
         a1 = np.zeros(self._N)
-        A = np.arccos(np.exp(-self.k*(1-self._zeta)/(2*np.sin(self._beta[-1]))))
+        A = np.arccos(np.exp(-self.k*(1-self._zeta)/(2.0*np.sin(self._beta[-1]))))
         CL0 = self.get_cp_CL(a0+self._aL0, self._Re, self._M)
         f0 = 0.125*self._c_hat_b/self._zeta*CL0-A*np.tan(e0)*np.sin(self._eps_inf+e0)
         
@@ -931,6 +950,49 @@ class BladeElementProp(BaseProp):
             return Cms.flatten()
         else:
             return self._airfoil_interpolator(self._zeta, self._airfoil_spans, Cms)
+
+
+    def get_advance_ratio(self, w, V):
+        """Determines the advance ratio from angular velocity in rad/s and velocity in ft/s.
+
+        Parameters
+        ----------
+        w : float
+            Angular velocity in rad/s.
+
+        V : float
+            Velocity in ft/s.
+
+        Returns
+        -------
+        float
+            Advance ratio.
+        """
+        rps = to_rpm(w)/60.0
+        if abs(rps) < 1e-10:
+            return np.inf
+        else:
+            return V/(rps*self.diameter)
+
+
+    def get_velocity(self, rpm, J):
+        """Determines the velocity from the rpm and advance ratio.
+
+        Parameters
+        ----------
+        rpm : float
+            Angular velocity in rpm.
+
+        J : float
+            Advance ratio.
+
+        Returns
+        -------
+        float
+            Velocity in ft/s.
+        """
+        rps = rpm/60.0
+        return J*rps*self.diameter
 
 
 #    def get_outline_points(self):
