@@ -25,12 +25,23 @@ def create_component_from_database(**kwargs):
     component with the value of this closest to the value given will be
     selected. In case of a tie, the selection is made randomly.
 
+    Alternatively, a two-element list can be given, as in
+
+        "Kv" : [300.0, 500.0]
+
+    This specifies that a motor with a Kv between these two values should be chosen.
+
     The following components are affected by the following parameters:
 
         prop: pitch, diameter
         motor: Kv
         battery: capacity, num_cells
         ESC: I_max
+
+    Only one exact numeric parameter may be given (i.e. you are not allowed to specify
+    { "pitch" : 12, "diameter" : 3}), as doing otherwise leaves the program with an
+    unsolvable problem, namely, which parameter am I to match more closely? Multiple
+    parameter ranges may be specified (i.e. { "pitch" : [3, 5], "diameter" : [12, 14] }).
 
     Parameters
     ----------
@@ -119,21 +130,62 @@ def create_component_from_database(**kwargs):
             command = command+" where id = "+str(dbid)
 
         # Add component-specific commands
-        if component_type == "battery" and capacity is not None:
-            command = command+" order by abs("+str(capacity)+"-Capacity)"
-        if component_type == "ESC" and I_max is not None:
-            command = command+" order by abs("+str(I_max)+"-I_motorax)"
-        if component_type == "motor" and Kv is not None:
-            command = command+" order by abs("+str(Kv)+"-kv)"
-        if component_type == "prop" and diameter is not None:
-            command = command+" order by abs("+str(diameter)+"-Diameter)"
-        if component_type == "prop" and pitch is not None:
-            command = command+" order by abs("+str(pitch)+"-Pitch)"
+        # Battery
+        if component_type == "battery":
+            if capacity is not None:
+                if isinstance(capacity, list):
+                    command = command+" where Capacity between {0} and {1} order by RANDOM() limit 1".format(min(capacity), max(capacity))
+                else:
+                    command = command+" order by abs({0}-Capacity)".format(capacity)
 
-        # Get in random order
-        command = command+" order by RANDOM() limit 1"
+        # ESC
+        elif component_type == "ESC":
+            if I_max is not None:
+                if isinstance(I_max, list):
+                    command = command+" where I_motorax between {0} and {1} order by RANDOM() limit 1".format(min(I_max), max(I_max))
+                else:
+                    command = command+" order by abs({0}-I_motorax)".format(I_max)
+
+        # Motor
+        elif component_type == "motor":
+            if Kv is not None:
+                if isinstance(Kv, list):
+                    command = command+" where kv between {0} and {1} order by RANDOM() limit 1".format(min(Kv), max(Kv))
+                else:
+                    command = command+" order by abs({0}-kv)".format(Kv)
+
+        # Prop
+        elif component_type == "prop":
+            specific = False
+            ranged = False
+
+            if diameter is not None and isinstance(diameter, list):
+                ranged = True
+                command = command+" where Diameter between {0} and {1}".format(min(diameter), max(diameter))
+            if pitch is not None and isinstance(pitch, list):
+                if not ranged:
+                    command = command+" where Pitch between {0} and {1}".format(min(pitch), max(pitch))
+                else:
+                    command = command+" and Pitch between {0} and {1}".format(min(pitch), max(pitch))
+            if diameter is not None and not isinstance(diameter, list):
+                specific = True
+                command = command+" order by abs({0}-Diameter)".format(diameter)
+            if pitch is not None and not isinstance(pitch, list):
+                if specific:
+                    raise IOError("Exact values for both pitch and diameter may not be given when selecting a propeller from the database.")
+                else:
+                    specific = True
+                    command = command+" order by abs({0}-Pitch)".format(pitch)
+
+            if not specific:
+                command = command+" order by RANDOM() limit 1"
+
+        else:
+            # Get in random order
+            command = command+" order by RANDOM() limit 1"
 
         # Get record
+        print(command)
         db_cur.execute(command)
         try:
             record = np.asarray(db_cur.fetchall())[0]
