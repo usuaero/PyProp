@@ -134,7 +134,10 @@ def create_component_from_database(**kwargs):
         if component_type == "battery":
             if capacity is not None:
                 if isinstance(capacity, list):
-                    command = command+" where Capacity between {0} and {1} order by RANDOM() limit 1".format(min(capacity), max(capacity))
+                    if "where" in command:
+                        command = command+" and Capacity between {0} and {1} order by RANDOM() limit 1".format(min(capacity), max(capacity))
+                    else:
+                        command = command+" where Capacity between {0} and {1} order by RANDOM() limit 1".format(min(capacity), max(capacity))
                 else:
                     command = command+" order by abs({0}-Capacity)".format(capacity)
 
@@ -142,7 +145,10 @@ def create_component_from_database(**kwargs):
         elif component_type == "ESC":
             if I_max is not None:
                 if isinstance(I_max, list):
-                    command = command+" where I_motorax between {0} and {1} order by RANDOM() limit 1".format(min(I_max), max(I_max))
+                    if "where" in command:
+                        command = command+" and I_motorax between {0} and {1} order by RANDOM() limit 1".format(min(I_max), max(I_max))
+                    else:
+                        command = command+" where I_motorax between {0} and {1} order by RANDOM() limit 1".format(min(I_max), max(I_max))
                 else:
                     command = command+" order by abs({0}-I_motorax)".format(I_max)
 
@@ -150,26 +156,37 @@ def create_component_from_database(**kwargs):
         elif component_type == "motor":
             if Kv is not None:
                 if isinstance(Kv, list):
-                    command = command+" where kv between {0} and {1} order by RANDOM() limit 1".format(min(Kv), max(Kv))
+                    if "where" in command:
+                        command = command+" and kv between {0} and {1} order by RANDOM() limit 1".format(min(Kv), max(Kv))
+                    else:
+                        command = command+" where kv between {0} and {1} order by RANDOM() limit 1".format(min(Kv), max(Kv))
                 else:
                     command = command+" order by abs({0}-kv)".format(Kv)
 
         # Prop
         elif component_type == "prop":
             specific = False
-            ranged = False
 
+            # Range of diameters
             if diameter is not None and isinstance(diameter, list):
-                ranged = True
-                command = command+" where Diameter between {0} and {1}".format(min(diameter), max(diameter))
-            if pitch is not None and isinstance(pitch, list):
-                if not ranged:
-                    command = command+" where Pitch between {0} and {1}".format(min(pitch), max(pitch))
+                if "where" in command:
+                    command = command+" and Diameter between {0} and {1}".format(min(diameter), max(diameter))
                 else:
+                    command = command+" where Diameter between {0} and {1}".format(min(diameter), max(diameter))
+
+            # Range of pitches
+            if pitch is not None and isinstance(pitch, list):
+                if "where" in command:
                     command = command+" and Pitch between {0} and {1}".format(min(pitch), max(pitch))
+                else:
+                    command = command+" where Pitch between {0} and {1}".format(min(pitch), max(pitch))
+
+            # Specific diameter
             if diameter is not None and not isinstance(diameter, list):
                 specific = True
                 command = command+" order by abs({0}-Diameter)".format(diameter)
+
+            # Specific pitch
             if pitch is not None and not isinstance(pitch, list):
                 if specific:
                     raise IOError("Exact values for both pitch and diameter may not be given when selecting a propeller from the database.")
@@ -180,7 +197,7 @@ def create_component_from_database(**kwargs):
             if not specific:
                 command = command+" order by RANDOM() limit 1"
 
-        else:
+        if "order" not in command:
             # Get in random order
             command = command+" order by RANDOM() limit 1"
 

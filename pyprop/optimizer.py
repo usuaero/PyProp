@@ -82,29 +82,49 @@ class Optimizer:
             Defaults to "data".
 
         prop_constraints : dict, optional
-            This can be used to constrain the propellers to a single prop or manufacturer. Formatted as
+            This can be used to constrain the propellers to certain parameters. Only valid for "fit" type propeller.
+            The parameters that can be specified are:
+
+                name
+                manufacturer
+                pitch
+                diameter
+
+            "name" will specify an exact prop in the database. This may not be specified along with any other parameters.
+            "Manufacturer" will limit the search to props from a given manufacturer. "pitch" and "diameter" may be given
+            as a specific value, in which case the closest value will be selected, or as a range. A range is given as a 
+            two-element list where the elements are the upper and lower limits. Note that two specific values may not be 
+            given (see the docstrings for pyprop.create_component_from_database()), but a specific value and a range may
+            be specified. The constraint dictionary may then look like
 
                 {
-                    "name" : "<PROP_NAME>"
+                    "manufacturer" : "APC",
+                    "pitch" : 6,
+                    "diameter" : [8, 16]
                 }
-
+            
             or
 
                 {
-                    "manufacturer" : "<MANUFACTURER_NAME>"
+                    "name" : "apc_12x6"
                 }
 
             These names should be given here exactly as they appear in the database. Defaults to allowing
             any propeller in the database.
 
         motor_constraints : dict, optional
-            Same as "prop_constraints".
+            Same as "prop_constraints", except that the allowable parameters are "name", "manufacturer", and "Kv".
 
         battery_constraints : dict, optional
-            Same as "prop_constraints".
+            Same as "prop_constraints", except that the allowable parameters are "name", "manufacturer", and "capacity".
 
         esc_constraints : dict, optional
-            Same as "prop_constraints".
+            Same as "prop_constraints", except that the allowable parameters are "name", "manufacturer", and "I_max".
+
+        Returns
+        -------
+        PropulsionUnit
+            The best unit found.
         """
 
         # Get computation parameters
@@ -141,11 +161,15 @@ class Optimizer:
         print("Optimization constrained as follows:")
         for component in ["prop", "motor", "esc", "battery"]:
             self._append_constraints(names, manufacturers, kwargs.get("{0}_constraints".format(component), {}), component)
+        prop_constraints = kwargs.get("prop_constraints", {})
+        motor_constraints = kwargs.get("motor_constraints", {})
+        battery_constraints = kwargs.get("battery_constraints", {})
+        esc_constraints = kwargs.get("esc_constraints", {})
 
         # Distribute work
         with mp.Pool(processes=N_proc_max) as pool:
-            args = [(V_req, goal_val, h, goal_code, W_frame, names, manufacturers, prop_model_type) for i in range(N_units)]
-            data = pool.map(self._get_random_unit, args)
+            args = [(V_req, goal_val, h, goal_code, W_frame, prop_constraints, motor_constraints, battery_constraints, esc_constraints, prop_model_type) for i in range(N_units)]
+            data = pool.map(self._evaluate_random_unit, args)
 
         # Package results
         t_flight, throttles, units, P_e, P_p, eff, cruise_thrust = map(list,zip(*data))
@@ -299,6 +323,8 @@ class Optimizer:
                                      curr_unit.batt.capacity, curr_unit.get_weight())
                     print(row, file=export_file)
 
+        return best_unit
+
 
     def _append_constraints(self, names, manufacturers, cnstr_dict, component):
         # Adds the constraints given by the user to the lists
@@ -325,7 +351,7 @@ class Optimizer:
             print("        Not constrained.")
 
 
-    def _get_random_unit(self, args):
+    def _evaluate_random_unit(self, args):
         #Selects a propulsion unit and calculates its flight time.
 
         # Parse arguments
@@ -334,9 +360,11 @@ class Optimizer:
         h = args[2]
         goal_code = args[3]
         W_frame = args[4]
-        names = args[5]
-        manufacturers = args[6]
-        prop_model_type = args[7]
+        prop_constraints = args[5]
+        motor_constraints = args[6]
+        battery_constraints = args[7]
+        esc_constraints = args[8]
+        prop_model_type = args[9]
 
         # Loop through random components until we get a valid one
         t_flight_curr = None
@@ -349,20 +377,20 @@ class Optimizer:
                 prop_name = props[prop_ind].replace(".ppdat", "").replace(".ppinf", "")
                 prop = DatabaseDataProp(prop_name)
             elif prop_model_type == "fit":
-                prop = create_component_from_database(component="prop", name=names[0], manufacturer=manufacturers[0])
+                prop = create_component_from_database(component="prop", **prop_constraints)
             elif prop_model_type == "BET":
-                raise RuntimeError("BET prop model is not currently available.")
+                raise RuntimeError("BET prop model is not currently available for optimization.")
             else:
                 raise IOError("{0} is not a valid prop model type.".format(prop_model_type))
 
             #Fetch motor data
-            motor = create_component_from_database(component="motor", name=names[1], manufacturer=manufacturers[1])
+            motor = create_component_from_database(component="motor", **motor_constraints)
 
             #Fetch ESC data
-            esc = create_component_from_database(component="ESC", name=names[2], manufacturer=manufacturers[2])
+            esc = create_component_from_database(component="ESC", **esc_constraints)
 
             #Fetch battery data
-            batt = create_component_from_database(component="battery", name=names[3], manufacturer=manufacturers[3])
+            batt = create_component_from_database(component="battery", **battery_constraints)
 
             # Determine required thrust
             curr_unit = PropulsionUnit(prop, motor, batt, esc, h)
