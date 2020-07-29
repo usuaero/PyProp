@@ -1,2 +1,2 @@
 sphinx_markdown_tables
-git+https://www.github.com/usuaero/AirfoilDatabase
+git+https://www.github.com/usuaero/AirfoilDatabase.git#egg=airfoil_db=1.4.1
