@@ -33,14 +33,15 @@ def create_component_from_database(**kwargs):
 
     The following components are affected by the following parameters:
 
-        prop: pitch, diameter
+        prop: pitch, diameter, prop_type
         motor: Kv
         battery: capacity, num_cells
         ESC: I_max
 
     Only one exact numeric parameter may be given (i.e. you are not allowed to specify
     { "pitch" : 12, "diameter" : 3}), as doing otherwise leaves the program with an
-    unsolvable problem, namely, which parameter am I to match more closely? Multiple
+    unsolvable problem, namely, which parameter am I to match more closely? Yes, there
+    are cases where both can be matched exactly, but this is not guaranteed. Multiple
     parameter ranges may be specified (i.e. { "pitch" : [3, 5], "diameter" : [12, 14] }).
 
     Parameters
@@ -57,6 +58,12 @@ def create_component_from_database(**kwargs):
 
     dbid : int, optional
         ID of the component in the database.
+
+    prop_type : str, optional
+        Type of the propeller model to use. Can either be "fit" or "data". "data" type
+        props will calculate the torque and thrust coefficients based off of linearly
+        interpolating experimental data. "fit" type props calculate the coefficients
+        based off of fits of the same data. Defaults to "data".
 
     capacity : float, optional
         Battery capacity in mAh.
@@ -93,8 +100,7 @@ def create_component_from_database(**kwargs):
     table_names = {
         "battery" : "Batteries",
         "ESC" : "ESCs",
-        "motor" : "Motors",
-        "prop" : "Props"
+        "motor" : "Motors"
     }
 
     # Determine where to get the info from
@@ -104,6 +110,7 @@ def create_component_from_database(**kwargs):
     name = kwargs.get("name", None)
     manufacturer = kwargs.get("manufacturer", None)
     dbid = kwargs.get("dbid", None)
+    prop_type = kwargs.get("prop_type", "data")
     capacity = kwargs.get("capacity", None)
     I_max = kwargs.get("I_max", None)
     Kv = kwargs.get("Kv", None)
@@ -115,8 +122,18 @@ def create_component_from_database(**kwargs):
     with sql.connect(db_file) as conn:
         db_cur = conn.cursor()
 
+        # Determine database table
+        if component_type == "prop":
+            if prop_type == "data":
+                table_name = "DataProps"
+            elif prop_type == "fit":
+                table_name = "Props"
+            else:
+                raise IOError("{0} is not a valid prop type.".format(prop_type))
+        else:
+            table_name = table_names[component_type]
+
         # Format command generically
-        table_name = table_names[component_type]
         command = "select * from {0}".format(table_name)
         if name is not None:
             if manufacturer is not None or dbid is not None:
@@ -202,7 +219,6 @@ def create_component_from_database(**kwargs):
             command = command+" order by RANDOM() limit 1"
 
         # Get record
-        print(command)
         db_cur.execute(command)
         try:
             record = np.asarray(db_cur.fetchall())[0]
@@ -237,6 +253,9 @@ def create_component_from_database(**kwargs):
                   weight=float(record[5]))
 
     elif component_type == "prop":
-        obj = DatabaseFitProp(record)
+        if prop_type == "data":
+            obj = DatabaseDataProp(record)
+        else:
+            obj = DatabaseFitProp(record)
         
     return obj

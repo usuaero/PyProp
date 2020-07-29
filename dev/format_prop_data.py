@@ -24,6 +24,19 @@ if __name__=="__main__":
     # Initialize count
     prop_count = 0
 
+    # Connect to database
+    db = sql.connect(os.path.join(dev_dir, "../pyprop/components.db"))
+    dbcur = db.cursor()
+
+    # Refresh table
+    try:
+        dbcur.execute("drop table DataProps")
+    except sql.OperationalError:
+        pass
+    create_table_command = "create table DataProps (id integer primary key, Name varchar, manufacturer varchar, Diameter real, Pitch real, Filename varchar)"
+    dbcur.execute(create_table_command)
+
+    # Loop through props
     for prop_dir in prop_data_dirs:
 
         # Check for not a data folder
@@ -243,16 +256,27 @@ if __name__=="__main__":
         with open(data_filename, 'w') as data_file:
             np.savetxt(data_file, data, '%25.10E', header=header)
 
-        # Parse info
-        info_dict = {
-            "name" : prop_dir,
-            "manufacturer" : manufacturer,
-            "diameter" : diameter,
-            "pitch" : pitch,
-            "data_file" : data_filename
-        }
-        info_filename = os.path.join(prop_store_dir, prop_dir+".ppinf")
-        with open(info_filename, 'w') as info_file:
-            json.dump(info_dict, info_file, indent=4)
+        ## Parse info
+        #info_dict = {
+        #    "name" : prop_dir,
+        #    "manufacturer" : manufacturer,
+        #    "diameter" : diameter,
+        #    "pitch" : pitch,
+        #    "data_file" : data_filename
+        #}
+        #info_filename = os.path.join(prop_store_dir, prop_dir+".ppinf")
+        #with open(info_filename, 'w') as info_file:
+        #    json.dump(info_dict, info_file, indent=4)
+    
+        # Store info in the database
+        format_string = """insert into DataProps (Name, manufacturer, Diameter, Pitch, Filename) values ("{prop_name}", "{prop_manu}",{prop_dia}, {prop_pitch}, "{filename}")"""
+        insert_command = format_string.format(prop_name=prop_dir, prop_manu=manufacturer, prop_dia=diameter, prop_pitch=pitch, filename="props/{0}.ppdat".format(prop_dir))
+        dbcur.execute(insert_command)
+
+    # Check database
+    dbcur.execute("select * from DataProps")
+    print(dbcur.fetchall())
+    db.commit()
+    db.close()
 
     print("Sorted through {0} propellers.".format(prop_count))

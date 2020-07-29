@@ -154,7 +154,6 @@ class DatabaseFitProp(BaseProp):
         SQL database record defining this prop. This class should
         be initialized using the pyprop.create_component_from_database()
         function.
-
     """
     
     def __init__(self, record):
@@ -243,31 +242,24 @@ class DatabaseDataProp(BaseProp):
 
     Parameters
     ----------
-    name : str
-        The name of the prop as stored in the props/ directory. This
-        is the same as the name of the prop in the components database.
-        The name should be given without the ".ppdat" or ".ppinf" file
-        extension.
+    record : list
+        SQL database record defining this prop. This class should
+        be initialized using the pyprop.create_component_from_database()
+        function.
     """
 
-    def __init__(self, name):
+    def __init__(self, record):
         
         # Load data file
-        prop_dir = os.path.join(os.path.dirname(__file__), "props")
-        data_filename = os.path.join(prop_dir, name+".ppdat")
+        data_filename = os.path.join(os.path.dirname(__file__), record[5])
         with open(data_filename, 'r') as data_file:
             self._data = np.genfromtxt(data_file, skip_header=1)
 
-        # Load info
-        info_filename = os.path.join(prop_dir, name+".ppinf")
-        with open(info_filename, 'r') as info_file:
-            self._info_dict = json.load(info_file)
-
         # Store params
-        self.name = self._info_dict["name"]
-        self.manufacturer = self._info_dict["manufacturer"]
-        self.diameter = self._info_dict["diameter"]
-        self.pitch = self._info_dict["pitch"]
+        self.name = record[1]
+        self.manufacturer = record[2]
+        self.diameter = float(record[3])
+        self.pitch = float(record[4])
 
 
     def get_torque_coef(self, w, V):

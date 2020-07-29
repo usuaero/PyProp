@@ -74,13 +74,6 @@ class Optimizer:
             terminal. Selecting a design will also highlight that design in each of the 6 plots, so that general
             patterns in the design space can be opserved.
 
-        prop_model_type : str, optional
-            Determines which type of prop model is to be used. Can be "data", "fit", or "BET". "data" props are defined
-            by tabulated experimental data for COTS parts. "fit" props are defined by polynomial fits of the 
-            experimental data. "BET" props are defined by blade element theory, a numerical model for determining
-            prop behavior. **"fit" props are not guaranteed to be realistic. It is recommended these not be used.**
-            Defaults to "data".
-
         prop_constraints : dict, optional
             This can be used to constrain the propellers to certain parameters. Only valid for "fit" type propeller.
             The parameters that can be specified are:
@@ -89,6 +82,7 @@ class Optimizer:
                 manufacturer
                 pitch
                 diameter
+                prop_type
 
             "name" will specify an exact prop in the database. This may not be specified along with any other parameters.
             "Manufacturer" will limit the search to props from a given manufacturer. "pitch" and "diameter" may be given
@@ -100,17 +94,25 @@ class Optimizer:
                 {
                     "manufacturer" : "APC",
                     "pitch" : 6,
-                    "diameter" : [8, 16]
+                    "diameter" : [8, 16],
+                    "prop_type" : "data"
                 }
             
             or
 
                 {
-                    "name" : "apc_12x6"
+                    "name" : "apc_12x6",
+                    "prop_type" : "fit"
                 }
 
             These names should be given here exactly as they appear in the database. Defaults to allowing
             any propeller in the database.
+
+            "prop_type" determines which type of prop model is to be used. Can be "data", "fit", or "BET". "data" props
+            are defined by tabulated experimental data for COTS parts. "fit" props are defined by polynomial fits of the 
+            experimental data. "BET" props are defined by blade element theory, a numerical model for determining
+            prop behavior. **"fit" props are not guaranteed to be realistic. It is recommended these not be used.**
+            Defaults to "data".
 
         motor_constraints : dict, optional
             Same as "prop_constraints", except that the allowable parameters are "name", "manufacturer", and "Kv".
@@ -133,7 +135,6 @@ class Optimizer:
         V_req = kwargs.get("airspeed")
         h = kwargs.get("altitude", 0.0)
         W_frame = kwargs.get("airframe_weight", 0.0)
-        prop_model_type = kwargs.get("prop_model_type", "data")
 
         seed(time.time())
 
@@ -147,7 +148,7 @@ class Optimizer:
         goal_val = kwargs.get("goal_val")
 
         # Print out optimization settings
-        print("Flight conditions:\nAirspeed {0} ft/s, Altitude {1} ft, Airframe weight: {2} lbs".format(V_req, h, W_frame))
+        print("Flight conditions:\n    Airspeed {0} ft/s, Altitude {1} ft, Airframe weight: {2} lbs".format(V_req, h, W_frame))
         if goal_code == 1:
             print("Optimizing for a thrust to weight ratio of {0}.".format(goal_val))
         elif goal_code == 0:
@@ -156,11 +157,10 @@ class Optimizer:
             print("Optimizing for a power to weight ratio of {0} W/lbf.".format(goal_val))
 
         # Determine constraints
-        names = []
-        manufacturers = []
         print("Optimization constrained as follows:")
         for component in ["prop", "motor", "esc", "battery"]:
-            self._append_constraints(names, manufacturers, kwargs.get("{0}_constraints".format(component), {}), component)
+            print(component.title())
+            print(json.dumps(kwargs.get("{0}_constraints".format(component), {}), indent=4))
         prop_constraints = kwargs.get("prop_constraints", {})
         motor_constraints = kwargs.get("motor_constraints", {})
         battery_constraints = kwargs.get("battery_constraints", {})
@@ -168,7 +168,7 @@ class Optimizer:
 
         # Distribute work
         with mp.Pool(processes=N_proc_max) as pool:
-            args = [(V_req, goal_val, h, goal_code, W_frame, prop_constraints, motor_constraints, battery_constraints, esc_constraints, prop_model_type) for i in range(N_units)]
+            args = [(V_req, goal_val, h, goal_code, W_frame, prop_constraints, motor_constraints, battery_constraints, esc_constraints) for i in range(N_units)]
             data = pool.map(self._evaluate_random_unit, args)
 
         # Package results
@@ -326,31 +326,6 @@ class Optimizer:
         return best_unit
 
 
-    def _append_constraints(self, names, manufacturers, cnstr_dict, component):
-        # Adds the constraints given by the user to the lists
-
-        # Check for name constraint
-        name = cnstr_dict.get("name", None)
-        names.append(name)
-
-        # Check for manufacturer constraint
-        manufacturer = cnstr_dict.get("manufacturer", None)
-        manufacturers.append(manufacturer)
-
-        # Check we only have one
-        if name is not None and manufacturer is not None:
-            raise RuntimeError("A manufacturer and name constraint cannot both be applied to {0}.".format(component))
-        
-        # Print constraint information
-        print("    {0}".format(component.title()))
-        if name is not None:
-            print("        Name:", name)
-        elif manufacturer is not None:
-            print("        Manufacturer:", manufacturer)
-        else:
-            print("        Not constrained.")
-
-
     def _evaluate_random_unit(self, args):
         #Selects a propulsion unit and calculates its flight time.
 
@@ -364,19 +339,14 @@ class Optimizer:
         motor_constraints = args[6]
         battery_constraints = args[7]
         esc_constraints = args[8]
-        prop_model_type = args[9]
 
         # Loop through random components until we get a valid one
         t_flight_curr = None
         while t_flight_curr is None or math.isnan(t_flight_curr):
 
-            #Fetch prop data
-            if prop_model_type == "data":
-                props = os.listdir(os.path.join(os.path.dirname(__file__), "props"))
-                prop_ind = randint(0, len(props)-1)
-                prop_name = props[prop_ind].replace(".ppdat", "").replace(".ppinf", "")
-                prop = DatabaseDataProp(prop_name)
-            elif prop_model_type == "fit":
+            # Fetch prop data
+            prop_model_type = prop_constraints.get("prop_type", "data")
+            if prop_model_type == "data" or prop_model_type == "fit":
                 prop = create_component_from_database(component="prop", **prop_constraints)
             elif prop_model_type == "BET":
                 raise RuntimeError("BET prop model is not currently available for optimization.")

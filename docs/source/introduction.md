@@ -1,2 +1,2 @@
 # Introduction
-PyProp is the ultimate electric propulsion modeling and optimization module.
+PyProp is the ultimate electric propulsion modeling and optimization module. It is meant to be a library of models and functions that users can interface with to help them design electric propulsion systems. PyProp contains Python classes for modelling whole propulsion units, propellers, motors, ESCs, and batteries, as well as classes and functions for creating and opitmizing these combinations.
