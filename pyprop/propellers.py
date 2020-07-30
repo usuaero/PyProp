@@ -356,8 +356,41 @@ class BladeElementProp(BaseProp):
     name : str
         Name of the prop.
 
-    input_dict : dict
-        Dictionary describing the geometry of the prop.
+    input_dict : dict, str
+        Dictionary describing the geometry of the prop. Can also be a path to a JSON file containing
+        the same information. This dictionary should have the following structure:
+
+            {
+                "airfoils" : {
+                    "<AIRFOIL_NAME>" : {
+                        Defined according to the AirfoilDatabase input.
+                        More info at airfoildatabase.readthedocs.io.
+                    }
+                },
+                "geometry" : {
+                    "n_blades" : number of blades on the propeller
+                    "hub_radius" : radius of the center hub
+                    "weight" : weight of the prop
+                    "diameter" : diameter of the prop
+                    "geom_pitch" : pitch length based on the geometric chord line
+                        or
+                    "aero_pitch" : pitch length based on the zero-lift line
+                        or
+                    "twist" : twist angle of the chord line; can be a constant float
+                        or given as an array where the first column is the fractional
+                        radial position along the blade and the second column is the
+                        local twist angle
+                    "chord" : chord length of the prop; can be a constant float, an
+                        array (as with "twist"), or an elliptic planform can be specified
+                        using ["elliptic", 1.0], where the number is the root chord length
+                    "rotation" : direction of rotation, either "CW" or "CCW"
+                    "airfoil" : airfoil section of the blade; either a single string, in
+                        which case the section is constant, or an array (as with "twist")
+                        where the local section is given in the second column; must
+                        be the name of an airfoil listed under "airfoils"
+                    "grid" : number of grid points to use on the prop
+                }
+            }
 
     airfoil_dict : dict, optional
         Dictionary of airfoils to be used by the prop. This is only needed
