@@ -13,10 +13,16 @@ The PyProp module contains multiple classes which can be used to model propulsio
 .. autoclass:: ESC
     :members:
 
-.. autoclass:: DatabaseProp
+.. autoclass:: DatabaseFitProp
+    :inherited-members:
+    :members:
+
+.. autoclass:: DatabaseDataProp
+    :inherited-members:
     :members:
 
 .. autoclass:: BladeElementProp
+    :inherited-members:
     :members:
 
 .. autoclass:: PropulsionUnit

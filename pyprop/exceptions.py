@@ -3,8 +3,8 @@
 class MaxCurrentExceededError(Exception):
     """An error thrown when the max current that can be handled by one of the components is exceeded.
 
-    Members
-    -------
+    Attributes
+    ----------
     component_type : str
         The type of component ("motor", "ESC", or "battery").
 
@@ -30,8 +30,8 @@ class ThrottleNotFoundError(Exception):
     """An error that occurs when the solver for the throttle value does not converge or the throttle
     value determined is not possible.
 
-    Members
-    -------
+    Attributes
+    ----------
     error_type : str
         The type of error. Either "not_converged" or "throttle_invalid".
 
@@ -60,8 +60,8 @@ class ThrottleNotFoundError(Exception):
 class TorquesNotMatchedError(Exception):
     """An error that occurs when the propeller and motor torques cannot be matched at a speed.
 
-    Members
-    -------
+    Attributes
+    ----------
     v_cruise : float
         Cruise velocity in ft/s.
 
@@ -79,8 +79,8 @@ class TorquesNotMatchedError(Exception):
 class InvalidRuntimeError(Exception):
     """An error that occurs when a negative runtime is predicted.
 
-    Members
-    -------
+    Attributes
+    ----------
     runtime : float
         The predicted runtime in minutes.
     """
@@ -94,8 +94,8 @@ class InvalidRuntimeError(Exception):
 class DatabaseRecordNotFoundError(Exception):
     """"An error which occurs when the user tries to pull a record from the database which does not exist.
 
-    Method
-    ------
+    Attributes
+    ----------
     command : str
         The sql command which failed.
     """

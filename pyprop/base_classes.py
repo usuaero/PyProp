@@ -8,7 +8,7 @@ import numpy as np
 from .exceptions import DatabaseRecordNotFoundError
 
 class DatabaseComponent:
-    """A component defined in the database."""
+    """A component defined in the database. DEPRECIATED"""
 
     def __init__(self):
 

@@ -129,4 +129,4 @@ dmypy.json
 .pyre/
 
 # Developer files
-search_results.txt
+*search_results.txt

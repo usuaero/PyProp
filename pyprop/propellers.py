@@ -78,6 +78,25 @@ class BaseProp:
         return J*rps*self.diameter/12.0
 
 
+    def get_power_coef(self, w, V):
+        """Returns the power coefficient for the prop at the given angular velocity and freestream velocity.
+
+        Parameters
+        ----------
+        w : float
+            Angular velocity of the prop in radians per second.
+
+        V : float
+            Freestream velocity in feet per second.
+
+        Returns
+        -------
+        float
+            Power coefficient.
+        """
+        return 2.0*np.pi*self.get_torque_coef(w, V)
+
+
     def plot_coefs(self, rpm_lims=[0.0, 35000.0], J_lims=[0.0, 1.4]):
         """Plot thrust and torque coefficients as functions of rpm and advance ratio.
 
@@ -123,7 +142,7 @@ class BaseProp:
             for i, J in enumerate(Js):
                 w = to_rads(rpm)
                 V = self.get_velocity(rpm, J)
-                power[i] = self.get_torque_coef(w, V)*2.0*np.pi
+                power[i] = self.get_power_coef(w, V)
             rpms_to_plot = np.full(len(power), rpm)
             ax.plot(Js, rpms_to_plot, power, 'r-')
 
@@ -146,7 +165,8 @@ class BaseProp:
 
 
 class DatabaseFitProp(BaseProp):
-    """Defines a propeller by database fits.
+    """Defines a propeller by database fits. Note that for this type of
+    prop, the diameter and pitch are stored in inches.
 
     Parameters
     ----------
@@ -154,6 +174,15 @@ class DatabaseFitProp(BaseProp):
         SQL database record defining this prop. This class should
         be initialized using the pyprop.create_component_from_database()
         function.
+
+    Attributes
+    ----------
+    diameter : float
+        Diameter of the prop in inches.
+
+    pitch : float
+        Pitch of the prop in inches. Note that this is the pitch reported by
+        the manufacturer. The actual propeller pitch may not be constant.
     """
     
     def __init__(self, record):
@@ -236,9 +265,8 @@ class DatabaseFitProp(BaseProp):
 
 
 class DatabaseDataProp(BaseProp):
-    """Defines a propeller by tabulated data. The data for these
-    props are contained in the pyprop/props/ directory. PyProp will
-    import that data automatically to intialize the prop.
+    """Defines a propeller by tabulated data. Note that for this type of
+    prop, the diameter and pitch are stored in inches.
 
     Parameters
     ----------
@@ -246,6 +274,15 @@ class DatabaseDataProp(BaseProp):
         SQL database record defining this prop. This class should
         be initialized using the pyprop.create_component_from_database()
         function.
+
+    Attributes
+    ----------
+    diameter : float
+        Diameter of the prop in inches.
+
+    pitch : float
+        Pitch of the prop in inches. Note that this is the pitch reported by
+        the manufacturer. The actual propeller pitch may not be constant.
     """
 
     def __init__(self, record):
@@ -311,7 +348,8 @@ class DatabaseDataProp(BaseProp):
 
 
 class BladeElementProp(BaseProp):
-    """Defines the performance of a propeller using blade element theory.
+    """Defines the performance of a propeller using blade element theory. Note that for this
+    type of prop, the diameter and pitch are stored in feet.
 
     Parameters
     ----------
@@ -324,6 +362,19 @@ class BladeElementProp(BaseProp):
     airfoil_dict : dict, optional
         Dictionary of airfoils to be used by the prop. This is only needed
         if these have not already been given in input_dict.
+
+    Attributes
+    ----------
+    name : str
+        
+    k : int
+        Number of blades on the prop.
+
+    diameter : float
+        Diameter of the prop in feet.
+
+    weight : float
+        Weight of the prop in lbf.
     """
 
     def __init__(self, name, input_dict, airfoil_dict=None):
@@ -479,11 +530,6 @@ class BladeElementProp(BaseProp):
                 pi_zeta = np.pi*zeta
                 tan_aL0 = np.tan(aL0)
                 K = pi_zeta*(K_c-pi_zeta*tan_aL0)/(pi_zeta+K_c*tan_aL0)
-                #if (K_c == 0.5).all():
-                #    plt.figure()
-                #    plt.plot(self._zeta, K_c)
-                #    plt.plot(self._zeta, K)
-                #    plt.show()
 
                 # Get beta
                 return np.arctan(K/pi_zeta)
@@ -711,25 +757,6 @@ class BladeElementProp(BaseProp):
         return 0.25*np.pi*np.pi*integrate.simps(dCt, self._zeta)
 
 
-    def get_power_coef(self, w, V):
-        """Returns the power coefficient for the prop at the given angular velocity and freestream velocity.
-
-        Parameters
-        ----------
-        w : float
-            Angular velocity of the prop in radians per second.
-
-        V : float
-            Freestream velocity in feet per second.
-
-        Returns
-        -------
-        float
-            Power coefficient.
-        """
-        return 2.0*np.pi*self.get_torque_coef(w, V)
-
-
     def _determine_condition(self, w, V):
         # Determines propeller conditions at the given angular velocity and freestream velocity
 
@@ -747,7 +774,7 @@ class BladeElementProp(BaseProp):
         self._M = V_tot/a
 
         # Get beta
-        self._aL0 = self.get_cp_aL0(self._Re, self._M)
+        self._aL0 = self._get_cp_aL0(self._Re, self._M)
         self._beta = self.get_beta(self._zeta, self._aL0)
 
         # Get advance ratio and freestream angle
@@ -763,8 +790,8 @@ class BladeElementProp(BaseProp):
         self._C_e = np.cos(self._e)
 
         # Determine lift and drag coefficients
-        self._CL = self.get_cp_CL(self._alpha_B+self._aL0, self._Re, self._M)
-        self._CD = self.get_cp_CD(self._alpha_B+self._aL0, self._Re, self._M)
+        self._CL = self._get_cp_CL(self._alpha_B+self._aL0, self._Re, self._M)
+        self._CD = self._get_cp_CD(self._alpha_B+self._aL0, self._Re, self._M)
 
 
     def _calc_ind_angle(self):
@@ -787,7 +814,7 @@ class BladeElementProp(BaseProp):
         a0 = self._beta-self._eps_inf-e0
         a1 = np.zeros(self._N)
         A = np.arccos(np.exp(-self.k*(1-self._zeta)/(2.0*np.sin(self._beta[-1]))))
-        CL0 = self.get_cp_CL(a0+self._aL0, self._Re, self._M)
+        CL0 = self._get_cp_CL(a0+self._aL0, self._Re, self._M)
         f0 = 0.125*self._c_hat_b/self._zeta*CL0-A*np.tan(e0)*np.sin(self._eps_inf+e0)
         
         # Initialize non-converged point indices
@@ -800,7 +827,7 @@ class BladeElementProp(BaseProp):
             a1[pos] = self._beta[pos]-self._eps_inf[pos]-e1[pos]
 
             #Create a new estimate for the induced angle
-            CL1 = self.get_cp_CL(a1+self._aL0, self._Re, self._M)
+            CL1 = self._get_cp_CL(a1+self._aL0, self._Re, self._M)
             f1[pos] = 0.125*self._c_hat_b[pos]/self._zeta[pos]*CL1[pos]-A[pos]*np.tan(e1[pos])*np.sin(self._eps_inf[pos]+e1[pos])
             e2[pos] = e1[pos]-f1[pos]*(e1[pos]-e0[pos])/(f1[pos]-f0[pos])
             
@@ -850,7 +877,7 @@ class BladeElementProp(BaseProp):
         plt.show()
 
 
-    def get_cp_aL0(self, Rey, Mach):
+    def _get_cp_aL0(self, Rey, Mach):
         """Returns the zero-lift angle of attack at each control point.
 
         Parameters
@@ -879,7 +906,7 @@ class BladeElementProp(BaseProp):
             return self._airfoil_interpolator(self._zeta, self._airfoil_spans, aL0s)
 
 
-    def get_cp_CL(self, alpha, Rey, Mach):
+    def _get_cp_CL(self, alpha, Rey, Mach):
         """Returns the coefficient of lift at each control point as a function of params.
 
         Parameters
@@ -911,7 +938,7 @@ class BladeElementProp(BaseProp):
             return self._airfoil_interpolator(self._zeta, self._airfoil_spans, CLs)
 
 
-    def get_cp_CD(self, alpha, Rey, Mach):
+    def _get_cp_CD(self, alpha, Rey, Mach):
         """Returns the coefficient of drag at each control point as a function of params.
 
         Parameters
@@ -943,7 +970,7 @@ class BladeElementProp(BaseProp):
             return self._airfoil_interpolator(self._zeta, self._airfoil_spans, CDs)
 
 
-    def get_cp_Cm(self, alpha, Rey, Mach):
+    def _get_cp_Cm(self, alpha, Rey, Mach):
         """Returns the moment coefficient at each control point as a function of params.
 
         Parameters

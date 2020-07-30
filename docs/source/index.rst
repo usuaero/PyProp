@@ -8,6 +8,7 @@ PyProp
    introduction
    installation
    user_interface
+   general_functions
    optimizer_object
    component_objects
    common_issues

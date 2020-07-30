@@ -22,6 +22,7 @@ from .special_functions import create_component_from_database
 class Optimizer:
     """A class for optimizing propulsion units. Will act as a wrapper for lower-level classes
     to provide easy analysis and optimization functionality to the user.
+
     """
 
     def __init__(self):
@@ -127,6 +128,7 @@ class Optimizer:
         -------
         PropulsionUnit
             The best unit found.
+
         """
 
         # Get computation parameters

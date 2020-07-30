@@ -120,12 +120,36 @@ def convert_units(in_value, units, system):
 
 
 def to_rpm(rads):
-    #Converts rads per second to rpm
+    """Converts rads per second to rpm.
+
+    Parameters
+    ----------
+    rads : float
+        Angular velocity in radians per second.
+
+    Returns
+    -------
+    float
+        Angular velocity in rpm.
+        
+    """
     return rads*30.0/m.pi
 
 
 def to_rads(rpm):
-    #Converts rpm to rads per second
+    """Converts rpm to rads per second
+
+    Parameters
+    ----------
+    rpm : float
+        Angular velocity in rpm.
+
+    Returns
+    -------
+    float
+        Angular velocity in radians per second.
+
+    """
     return rpm*m.pi/30.0
 
 

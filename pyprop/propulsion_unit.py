@@ -28,6 +28,24 @@ class PropulsionUnit:
 
     altitude : float, optional
         Altitude in feet. Defaults to 0.0.
+
+    Attributes
+    ----------
+    prop : DatabaseFitProp, DatabaseDataProp, or BladeElementProp
+        Propeller object being used in the propulsion unit.
+
+    motor : Motor
+        Motor object being used in the propulsion unit.
+
+    battery : Battery
+        Battery object being used in the propulsion unit.
+
+    esc : ESC
+        ESC object being used in the propulsion unit.
+
+    I_motor : float
+        Current being drawn by the motor under the last calculated conditions.
+
     """
 
     def __init__(self, prop, motor, battery, esc, altitude=0.0):
@@ -55,6 +73,7 @@ class PropulsionUnit:
         -------
         float
             Torque produced by the motor in Nm.
+
         """
 
         # Determine motor current
@@ -83,6 +102,7 @@ class PropulsionUnit:
         -------
         float
             Thrust in lbf.
+
         """
 
         # Check for zero inputs, in which case the thrust is zero. Obviously.
@@ -168,6 +188,7 @@ class PropulsionUnit:
         -------
         float
             Throttle setting required for given thrust and velocity.
+
         """
 
         # Get initial guess
@@ -234,6 +255,7 @@ class PropulsionUnit:
 
         n_thr : int
             Number of throttle values to plot. Throttle is ranged from 0 to 1. Defaults to 10.
+
         """
         
         # Get ranges
@@ -288,6 +310,7 @@ class PropulsionUnit:
         -------
         float
             Flight time in minutes
+
         """
 
         # Calculate required throttle
@@ -309,9 +332,15 @@ class PropulsionUnit:
         Returns
         -------
         float
-            Weight of the propulsion system (minus the prop) in pounds.
+            Weight of the propulsion system in pounds. Note, the weight
+            of the prop will be included only if the prop is of type
+            BladeElementProp.
+
         """
-        return (self.batt.weight + self.motor.weight + self.esc.weight)/16.0
+        if isinstance(self.prop, BladeElementProp):
+            return (self.batt.weight + self.motor.weight + self.esc.weight)/16.0 + self.prop.weight
+        else:
+            return (self.batt.weight + self.motor.weight + self.esc.weight)/16.0
 
 
     def get_electric_power(self):
@@ -321,6 +350,7 @@ class PropulsionUnit:
         -------
         float
             Electrical power sourced in Watts.
+
         """
         return self.I_motor*self.batt.V0
 
