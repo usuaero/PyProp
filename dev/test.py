@@ -36,7 +36,7 @@ batt = pyprop.Battery(name="Venom 16000mAh", capacity=16000.0, resistance=0.024,
 #batt = pyprop.create_component_from_database(component="battery", capacity=[2000, 5000])
 #prop = pyprop.create_component_from_database(component="prop", diameter=[11, 16], pitch=[4, 9], manufacturer="APC")
 #prop = pyprop.create_component_from_database(component="prop", type="data", diameter=[11, 16], pitch=[4, 9], manufacturer="APC")
-prop = pyprop.create_component_from_database(component="prop", name="apc_12x6")
+prop = pyprop.create_component_from_database(component="prop", name="apce_12x6")
 
 unit = pyprop.PropulsionUnit(prop, motor, batt, esc)
 #unit.plot_thrust_curves([0.0, 50.0], n_thr=50)
