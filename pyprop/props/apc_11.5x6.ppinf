@@ -1,7 +1,0 @@
-{
-    "name": "apc_11.5x6",
-    "manufacturer": "APC",
-    "diameter": 11.5,
-    "pitch": 6.0,
-    "data_file": "dev/../pyprop/props/apc_11.5x6.ppdat"
-}

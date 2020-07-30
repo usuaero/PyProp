@@ -1,7 +1,0 @@
-{
-    "name": "apce_8x8",
-    "manufacturer": "APC",
-    "diameter": 8.0,
-    "pitch": 8.0,
-    "data_file": "dev/../pyprop/props/apce_8x8.ppdat"
-}

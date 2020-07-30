@@ -1,7 +1,0 @@
-{
-    "name": "apcr-rh_9x4.5",
-    "manufacturer": "APC",
-    "diameter": 9.0,
-    "pitch": 4.0,
-    "data_file": "dev/../pyprop/props/apcr-rh_9x4.5.ppdat"
-}

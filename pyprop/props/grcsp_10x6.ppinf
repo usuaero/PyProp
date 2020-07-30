@@ -1,7 +1,0 @@
-{
-    "name": "grcsp_10x6",
-    "manufacturer": "GRAUPNER",
-    "diameter": 10.0,
-    "pitch": 6.0,
-    "data_file": "dev/../pyprop/props/grcsp_10x6.ppdat"
-}

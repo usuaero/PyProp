@@ -1,7 +1,0 @@
-{
-    "name": "ance_8.5x7",
-    "manufacturer": "AERONAUT",
-    "diameter": 8.5,
-    "pitch": 7.0,
-    "data_file": "dev/../pyprop/props/ance_8.5x7.ppdat"
-}

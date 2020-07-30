@@ -1,7 +1,0 @@
-{
-    "name": "pl_57x20",
-    "manufacturer": "PLANTRACO",
-    "diameter": 2.2440944881889764,
-    "pitch": 0.7874015748031497,
-    "data_file": "dev/../pyprop/props/pl_57x20.ppdat"
-}

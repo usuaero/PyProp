@@ -1,7 +1,0 @@
-{
-    "name": "nr640_9x20deg",
-    "manufacturer": "UIUC",
-    "diameter": 9.0,
-    "pitch": 10.805566723207741,
-    "data_file": "dev/../pyprop/props/nr640_9x20deg.ppdat"
-}

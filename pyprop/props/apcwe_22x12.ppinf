@@ -1,7 +1,0 @@
-{
-    "name": "apcwe_22x12",
-    "manufacturer": "APC",
-    "diameter": 22.0,
-    "pitch": 12.0,
-    "data_file": "dev/../pyprop/props/apcwe_22x12.ppdat"
-}

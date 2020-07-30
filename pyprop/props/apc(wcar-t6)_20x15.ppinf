@@ -1,7 +1,0 @@
-{
-    "name": "apc(wcar-t6)_20x15",
-    "manufacturer": "APC",
-    "diameter": 20.0,
-    "pitch": 15.0,
-    "data_file": "dev/../pyprop/props/apc(wcar-t6)_20x15.ppdat"
-}

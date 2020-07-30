@@ -1,7 +1,0 @@
-{
-    "name": "nr640_9x15deg_4-blade",
-    "manufacturer": "UIUC",
-    "diameter": 9.0,
-    "pitch": 7.954889176807016,
-    "data_file": "dev/../pyprop/props/nr640_9x15deg_4-blade.ppdat"
-}

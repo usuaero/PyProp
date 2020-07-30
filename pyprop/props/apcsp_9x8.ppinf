@@ -1,7 +1,0 @@
-{
-    "name": "apcsp_9x8",
-    "manufacturer": "APC",
-    "diameter": 9.0,
-    "pitch": 8.0,
-    "data_file": "dev/../pyprop/props/apcsp_9x8.ppdat"
-}

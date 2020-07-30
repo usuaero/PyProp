@@ -1,7 +1,0 @@
-{
-    "name": "magf_11x5",
-    "manufacturer": "MASTERAIRSCREW",
-    "diameter": 11.0,
-    "pitch": 5.0,
-    "data_file": "dev/../pyprop/props/magf_11x5.ppdat"
-}

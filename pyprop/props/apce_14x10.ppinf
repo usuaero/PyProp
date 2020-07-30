@@ -1,7 +1,0 @@
-{
-    "name": "apce_14x10",
-    "manufacturer": "APC",
-    "diameter": 14.0,
-    "pitch": 10.0,
-    "data_file": "dev/../pyprop/props/apce_14x10.ppdat"
-}

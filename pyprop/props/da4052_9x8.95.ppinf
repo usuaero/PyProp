@@ -1,7 +1,0 @@
-{
-    "name": "da4052_9x8.95",
-    "manufacturer": "UIUC",
-    "diameter": 9.0,
-    "pitch": 8.95,
-    "data_file": "dev/../pyprop/props/da4052_9x8.95.ppdat"
-}

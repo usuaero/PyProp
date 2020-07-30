@@ -1,7 +1,0 @@
-{
-    "name": "mae_10x7",
-    "manufacturer": "MASTERAIRSCREW",
-    "diameter": 10.0,
-    "pitch": 7.0,
-    "data_file": "dev/../pyprop/props/mae_10x7.ppdat"
-}

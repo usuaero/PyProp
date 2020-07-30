@@ -1,7 +1,0 @@
-{
-    "name": "apcw-3blade_15x13",
-    "manufacturer": "APC",
-    "diameter": 15.0,
-    "pitch": 13.0,
-    "data_file": "dev/../pyprop/props/apcw-3blade_15x13.ppdat"
-}

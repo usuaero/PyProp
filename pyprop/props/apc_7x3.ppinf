@@ -1,7 +1,0 @@
-{
-    "name": "apc_7x3",
-    "manufacturer": "APC",
-    "diameter": 7.0,
-    "pitch": 3.0,
-    "data_file": "dev/../pyprop/props/apc_7x3.ppdat"
-}

@@ -1,7 +1,0 @@
-{
-    "name": "gwssf_8x4.3",
-    "manufacturer": "GWS",
-    "diameter": 8.0,
-    "pitch": 4.3,
-    "data_file": "dev/../pyprop/props/gwssf_8x4.3.ppdat"
-}

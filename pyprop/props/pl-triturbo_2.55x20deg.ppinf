@@ -1,7 +1,0 @@
-{
-    "name": "pl-triturbo_2.55x20deg",
-    "manufacturer": "PLANTRACO",
-    "diameter": 2.55,
-    "pitch": 3.0615772382421933,
-    "data_file": "dev/../pyprop/props/pl-triturbo_2.55x20deg.ppdat"
-}

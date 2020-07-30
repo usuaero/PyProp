@@ -1,7 +1,0 @@
-{
-    "name": "gwsdd_4x2.5",
-    "manufacturer": "GWS",
-    "diameter": 4.0,
-    "pitch": 2.5,
-    "data_file": "dev/../pyprop/props/gwsdd_4x2.5.ppdat"
-}
