@@ -104,3 +104,26 @@ class DatabaseRecordNotFoundError(Exception):
         self.command = command
 
         super().__init__("The command '{0}' failed to retrieve a component from the database.".format(command))
+
+
+class PropDataBoundsError(Exception):
+    """"An error which occurs when the computation falls outside the range of the experimental data for the prop.
+
+    Attributes
+    ----------
+    prop : str
+        The name of the prop.
+
+    rpm : float
+        The rpm value which exceeded the data.
+
+    J : float
+        The advance ratio which exceeded the data.
+    """
+
+    def __init__(self, prop, rpm, J):
+        self.prop = prop
+        self.rpm = rpm
+        self.J = J
+
+        super().__init__("The prop {0} exceeded the range of the available data at {1} rpm and an advance ratio of {2}.".format(prop, rpm, J))

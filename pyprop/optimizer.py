@@ -119,7 +119,8 @@ class Optimizer:
             Same as "prop_constraints", except that the allowable parameters are "name", "manufacturer", and "Kv".
 
         battery_constraints : dict, optional
-            Same as "prop_constraints", except that the allowable parameters are "name", "manufacturer", and "capacity".
+            Same as "prop_constraints", except that the allowable parameters are "name", "manufacturer", "num_cells",
+            and "capacity".
 
         esc_constraints : dict, optional
             Same as "prop_constraints", except that the allowable parameters are "name", "manufacturer", and "I_max".
@@ -174,7 +175,7 @@ class Optimizer:
             data = pool.map(self._evaluate_random_unit, args)
 
         # Package results
-        t_flight, throttles, units, P_e, P_p, eff, cruise_thrust = map(list,zip(*data))
+        t_flight, throttles, units, P_e, P_p, eff, cruise_thrust, max_thrust, max_power_to_weight = map(list,zip(*data))
         t_flight = np.asarray(t_flight)
         throttles = np.asarray(throttles)
         units = np.asarray(units)
@@ -182,6 +183,8 @@ class Optimizer:
         P_p = np.asarray(P_p)
         eff = np.asarray(eff)
         cruise_thrust = np.asarray(cruise_thrust)
+        max_thrust = np.asarray(max_thrust)
+        max_power_to_weight = np.asarray(max_power_to_weight)
 
         # Determine optimum
         max_ind = np.argmax(t_flight)
@@ -205,6 +208,8 @@ class Optimizer:
         print("    Power developed: {0} lbf*ft/s ({1} W)".format(P_p[max_ind], P_p[max_ind]/0.7375621494575464))
         print("    Propulsive efficiency: {0}%".format(eff[max_ind]*100.0))
         print("    Cruise thrust: {0} lbf".format(cruise_thrust[max_ind]))
+        print("    Max thrust (at 100% throttle): {0} lbf".format(max_thrust[max_ind]))
+        print("    Max power-to-weight (at 100% throttle): {0} W/lbf".format(max_power_to_weight[max_ind]))
 
         # Plot results
         if kwargs.get("plot", True):
@@ -226,14 +231,16 @@ class Optimizer:
                 fig.suptitle("SELECTED Prop: {0} Motor: {1} Battery: {2} ESC: {3}".format(selected_unit.prop.name, selected_unit.motor.name, selected_unit.batt.name, selected_unit.esc.name))
 
                 # Highlight points in all plots
-                ax[0].plot(selected_unit.prop.diameter,t_flight[ind],'*')
-                ax[1].plot(selected_unit.prop.pitch,t_flight[ind],'*')
-                ax[2].plot(selected_unit.motor.Kv,t_flight[ind],'*')
-                ax[3].plot(selected_unit.batt.V0,t_flight[ind],'*')
-                ax[4].plot(selected_unit.batt.capacity,t_flight[ind],'*')
-                ax[5].plot(selected_unit.get_weight()+W_frame,t_flight[ind],'*')
-                ax[6].plot(throttles[ind],t_flight[ind],'*')
-                ax[7].plot(eff[ind],t_flight[ind],'*')
+                ax[0].plot(selected_unit.prop.diameter, t_flight[ind], '*')
+                ax[1].plot(selected_unit.prop.pitch, t_flight[ind], '*')
+                ax[2].plot(selected_unit.motor.Kv, t_flight[ind], '*')
+                ax[3].plot(selected_unit.batt.V0, t_flight[ind], '*')
+                ax[4].plot(selected_unit.batt.capacity, t_flight[ind], '*')
+                ax[5].plot(selected_unit.get_weight()+W_frame, t_flight[ind], '*')
+                ax[6].plot(throttles[ind], t_flight[ind], '*')
+                ax[7].plot(eff[ind], t_flight[ind], '*')
+                ax[8].plot(max_thrust[ind], t_flight[ind], '*')
+                ax[9].plot(max_power_to_weight[ind], t_flight[ind], '*')
 
                 # Print out info
                 print(selected_unit)
@@ -245,6 +252,8 @@ class Optimizer:
                 print("    Power developed: {0} lbf*ft/s ({1} W)".format(P_p[ind], P_p[ind]/0.7375621494575464))
                 print("    Propulsive efficiency: {0}%".format(eff[ind]*100.0))
                 print("    Cruise thrust: {0} lbf".format(cruise_thrust[ind]))
+                print("    Max thrust (at 100% throttle): {0} lbf".format(max_thrust[ind]))
+                print("    Max power-to-weight (at 100% throttle): {0} W/lbf".format(max_power_to_weight[ind]))
 
                 # Plot performance curves
                 selected_unit.plot_thrust_curves([0.0, V_req*2.0+10.0], 11, 51)
@@ -252,7 +261,7 @@ class Optimizer:
 
             # Plot design space
             plt.ion()
-            fig,((ax1,ax2,ax3,ax4),(ax5,ax6,ax7,ax8)) = plt.subplots(nrows=2,ncols=4)
+            fig,((ax1,ax2,ax3,ax4,ax5),(ax6,ax7,ax8,ax9,ax10)) = plt.subplots(nrows=2,ncols=5)
             fig.suptitle("OPTIMUM Prop: {0} Motor: {1} Battery: {2} ESC: {3}".format(best_unit.prop.name, best_unit.motor.name, best_unit.batt.name, best_unit.esc.name))
 
             ax1.scatter([units[i].prop.diameter for i in range(N_units)], t_flight, picker=3, c=eff)
@@ -263,22 +272,18 @@ class Optimizer:
             ax2.scatter([units[i].prop.pitch for i in range(N_units)],t_flight, c=eff,picker=3)
             ax2.plot(best_unit.prop.pitch,t_max,'r*')
             ax2.set_xlabel("Prop Pitch [in]")
-            ax2.set_ylabel("Flight Time [min]")
 
             ax3.scatter([units[i].motor.Kv for i in range(N_units)],t_flight, c=eff,picker=3)
             ax3.plot(best_unit.motor.Kv,t_max,'r*')
             ax3.set_xlabel("Motor Kv [rpm/V]")
-            ax3.set_ylabel("Flight Time [min]")
 
             ax4.scatter([units[i].batt.V0 for i in range(N_units)],t_flight, c=eff,picker=3)
             ax4.plot(best_unit.batt.V0,t_max,'r*')
             ax4.set_xlabel("Battery Voltage [V]")
-            ax4.set_ylabel("Flight Time [min]")
 
             ax5.scatter([units[i].batt.capacity for i in range(N_units)],t_flight, c=eff,picker=3)
             ax5.plot(best_unit.batt.capacity,t_max,'r*')
             ax5.set_xlabel("Battery Capacity [mAh]")
-            ax5.set_ylabel("Flight Time [min]")
 
             ax6.scatter([units[i].get_weight()+W_frame for i in range(N_units)],t_flight, c=eff,picker=3)
             ax6.plot(best_unit.get_weight()+W_frame,t_max,'r*')
@@ -288,12 +293,18 @@ class Optimizer:
             ax7.scatter(throttles,t_flight, c=eff,picker=3)
             ax7.plot(throttle_at_max,t_max,'r*')
             ax7.set_xlabel("Throttle Setting at Max Flight Time")
-            ax7.set_ylabel("Flight Time [min]")
 
             ax8.scatter(eff, t_flight,  c=eff, picker=3)
             ax8.plot(eff[max_ind], t_max, 'r*')
             ax8.set_xlabel("Efficiency at Max Flight Time")
-            ax8.set_ylabel("Flight Time [min]")
+
+            ax9.scatter(max_thrust, t_flight,  c=eff, picker=3)
+            ax9.plot(max_thrust[max_ind], t_max, 'r*')
+            ax9.set_xlabel("Max Thrust at Cruise [lbf]")
+
+            ax10.scatter(max_power_to_weight, t_flight,  c=eff, picker=3)
+            ax10.plot(max_power_to_weight[max_ind], t_max, 'r*')
+            ax10.set_xlabel("Max Electric Power-to-Weight at Cruise [W/lbf]")
 
             fig.canvas.mpl_connect('pick_event',on_pick)
             plt.show(block=True)
@@ -343,8 +354,8 @@ class Optimizer:
         esc_constraints = args[8]
 
         # Loop through random components until we get a valid one
-        t_flight_curr = None
-        while t_flight_curr is None or math.isnan(t_flight_curr):
+        t_flight_cruise = None
+        while t_flight_cruise is None or math.isnan(t_flight_cruise):
 
             # Fetch prop data
             prop_model_type = prop_constraints.get("prop_type", "data")
@@ -377,11 +388,13 @@ class Optimizer:
             try:
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    t_flight_curr = curr_unit.calc_batt_life(V_req, T_req)
-                    thr_curr = curr_unit.calc_cruise_throttle(V_req, T_req)
-                    P_e_curr = curr_unit.get_electric_power()
-                    P_p_curr = V_req*T_req
-                    eff = P_p_curr/(P_e_curr*0.7375621494575464)
+                    T_max = curr_unit.calc_cruise_thrust(V_req, 1.0)
+                    power_to_weight_max = curr_unit.get_electric_power()/(curr_unit.get_weight()+W_frame)
+                    t_flight_cruise = curr_unit.calc_batt_life(V_req, T_req)
+                    thr_cruise = curr_unit.calc_cruise_throttle(V_req, T_req)
+                    P_e_cruise = curr_unit.get_electric_power()
+                    P_p_cruise = V_req*T_req
+                    eff = P_p_cruise/(P_e_cruise*0.7375621494575464)
 
             # Anything that goes wrong just means this particular combination isn't up to snuff
             except ZeroDivisionError:
@@ -396,7 +409,7 @@ class Optimizer:
                 continue
 
         # Return params
-        return t_flight_curr, thr_curr, curr_unit, P_e_curr, P_p_curr, eff, T_req
+        return t_flight_cruise, thr_cruise, curr_unit, P_e_cruise, P_p_cruise, eff, T_req, T_max, power_to_weight_max
 
 
     def _get_thrust_from_power_ratio(self, power_ratio, weight, V):

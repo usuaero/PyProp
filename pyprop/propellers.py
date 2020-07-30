@@ -16,6 +16,7 @@ from scipy import integrate
 from .poly_fit import poly_func
 from .helpers import to_rpm, to_rads, import_value, check_filepath
 from .standard_atmosphere import StandardAtmosphere
+from .exceptions import PropDataBoundsError
 
 class BaseProp:
     """Defines a propeller."""
@@ -320,7 +321,12 @@ class DatabaseDataProp(BaseProp):
         rpm = to_rpm(w)
         J = self.get_advance_ratio(w, V)
 
-        return interp.griddata(self._data[:,:2], self._data[:,3], np.array([[rpm, J]]), method='linear').item()/(2.0*np.pi)
+        C_T = interp.griddata(self._data[:,:2], self._data[:,3], np.array([[rpm, J]]), method='linear').item()/(2.0*np.pi)
+
+        if np.isnan(C_T):
+            raise PropDataBoundsError(self.name, rpm, J)
+
+        return C_T
         
 
     def get_thrust_coef(self, w, V):
@@ -343,8 +349,13 @@ class DatabaseDataProp(BaseProp):
         # Get revs per minute and J
         rpm = to_rpm(w)
         J = self.get_advance_ratio(w, V)
+
+        C_l = interp.griddata(self._data[:,:2], self._data[:,2], np.array([[rpm, J]]), method='linear').item()
+
+        if np.isnan(C_l):
+            raise PropDataBoundsError(self.name, rpm, J)
         
-        return interp.griddata(self._data[:,:2], self._data[:,2], np.array([[rpm, J]]), method='linear').item()
+        return C_l
 
 
 class BladeElementProp(BaseProp):

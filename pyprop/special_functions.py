@@ -65,31 +65,31 @@ def create_component_from_database(**kwargs):
         interpolating experimental data. "fit" type props calculate the coefficients
         based off of fits of the same data. Defaults to "data".
 
-    capacity : float, optional
+    capacity : float or list, optional
         Battery capacity in mAh.
 
-    num_cells : int, optional
+    num_cells : int or list, optional
         Number of series cells in the battery. Note that batteries are stored
         as single cells in the database, so all batteries are available with
         an arbitrary number of cells (this may not reflect commercial
         availability). If not specified, this defaults to a random integer
         between 1 and 8.
 
-    I_max : float, optional
+    I_max : float or list, optional
         Maximum ESC current draw.
 
-    Kv : float, optional
+    Kv : float or list, optional
         Motor speed constant.
 
-    diameter : float, optional
+    diameter : float or list, optional
         Propeller diameter in inches.
 
-    pitch : float, optional
+    pitch : float or list, optional
         Propeller pitch in inches.
 
     Returns
     -------
-    Motor, Battery, ESC, or DatabaseFitProp
+    Motor, Battery, ESC, DatabaseDataProp, or DatabaseFitProp
         The component specified, pulled from the database.
     """
 
@@ -116,7 +116,9 @@ def create_component_from_database(**kwargs):
     Kv = kwargs.get("Kv", None)
     diameter = kwargs.get("diameter", None)
     pitch = kwargs.get("pitch", None)
-    num_cells = kwargs.get("num_cells", randint(1, 8))
+    num_cells = kwargs.get("num_cells", [1, 8])
+    if isinstance(num_cells, list):
+        num_cells = randint(num_cells[0], num_cells[1])
 
     # Get database location and connection
     with sql.connect(db_file) as conn:

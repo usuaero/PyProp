@@ -23,6 +23,10 @@ The following custom errors are defined in PyProp
 .. autoclass:: DatabaseRecordNotFoundError
    :members:
 
+.. automodule:: pyprop
+.. autoclass:: PropDataBoundsError
+   :members:
+
 .. automodule:: airfoil_db
 .. autoclass:: DatabaseBoundsError
    :members:
