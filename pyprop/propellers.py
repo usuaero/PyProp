@@ -364,31 +364,54 @@ class BladeElementProp(BaseProp):
                 "airfoils" : {
                     "<AIRFOIL_NAME>" : {
                         Defined according to the AirfoilDatabase input.
-                        More info at airfoildatabase.readthedocs.io.
+                        More info at [airfoildatabase.readthedocs.io](https://airfoildatabase.readthedocs.io).
                     }
                 },
                 "geometry" : {
-                    "n_blades" : number of blades on the propeller
-                    "hub_radius" : radius of the center hub
-                    "weight" : weight of the prop
-                    "diameter" : diameter of the prop
-                    "geom_pitch" : pitch length based on the geometric chord line
+                    "n_blades" : int
+                        Number of blades on the propeller.
+
+                    "hub_radius" : float
+                        Radius of the center hub.
+
+                    "weight" : float
+                        Weight of the prop.
+
+                    "diameter" : float
+                        Diameter of the prop.
+
+                    "geom_pitch" : float or array, optional
+                        Pitch length based on the geometric chord line.
+
                         or
-                    "aero_pitch" : pitch length based on the zero-lift line
+
+                    "aero_pitch" : float or array, optional
+                        Pitch length based on the zero-lift line.
+
                         or
-                    "twist" : twist angle of the chord line; can be a constant float
+
+                    "twist" : float or array, optional
+                        Twist angle of the chord line; can be a constant float
                         or given as an array where the first column is the fractional
                         radial position along the blade and the second column is the
-                        local twist angle
-                    "chord" : chord length of the prop; can be a constant float, an
+                        local twist angle.
+                        
+                    "chord" : float or array
+                        Chord length of the prop; can be a constant float, an
                         array (as with "twist"), or an elliptic planform can be specified
-                        using ["elliptic", 1.0], where the number is the root chord length
-                    "rotation" : direction of rotation, either "CW" or "CCW"
-                    "airfoil" : airfoil section of the blade; either a single string, in
+                        using ["elliptic", 1.0], where the number is the root chord length.
+
+                    "rotation" : str
+                        direction of rotation, either "CW" or "CCW"
+
+                    "airfoil" : str or array
+                        Airfoil section of the blade; either a single string, in
                         which case the section is constant, or an array (as with "twist")
                         where the local section is given in the second column; must
-                        be the name of an airfoil listed under "airfoils"
-                    "grid" : number of grid points to use on the prop
+                        be the name of an airfoil listed under "airfoils".
+
+                    "grid" : int
+                        Number of grid points to use on the prop.
                 }
             }
 
