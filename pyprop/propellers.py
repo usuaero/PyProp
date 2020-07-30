@@ -364,7 +364,7 @@ class BladeElementProp(BaseProp):
                 "airfoils" : {
                     "<AIRFOIL_NAME>" : {
                         Defined according to the AirfoilDatabase input.
-                        More info at [airfoildatabase.readthedocs.io](https://airfoildatabase.readthedocs.io).
+                        More info at https://airfoildatabase.readthedocs.io.
                     }
                 },
                 "geometry" : {
