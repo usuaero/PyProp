@@ -39,8 +39,10 @@ batt = pyprop.Battery(name="Venom 16000mAh", capacity=16000.0, resistance=0.024,
 prop = pyprop.create_component_from_database(component="prop", name="apce_12x6")
 
 unit = pyprop.PropulsionUnit(prop, motor, batt, esc)
-#unit.plot_thrust_curves([0.0, 50.0], n_thr=50)
+unit.plot_thrust_curves([0.0, 70.0], n_thr=11, n_vel=71)
 T = unit.calc_cruise_thrust(0.0, 1.0)
 print("Static thrust: {0} lbf".format(T))
-t = unit.calc_batt_life(69.0, 4.4)
-print("Cruise flight time: {0} min".format(t))
+T = unit.calc_cruise_thrust(69.0, 1.0)
+print("Max thrust at 69 ft/s: {0} lbf".format(T))
+#t = unit.calc_batt_life(69.0, 4.4)
+#print("Cruise flight time: {0} min".format(t))

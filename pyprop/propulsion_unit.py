@@ -262,16 +262,20 @@ class PropulsionUnit:
         
         # Get ranges
         vel = np.linspace(v_lims[0], v_lims[1], n_vel)
-        thr = np.linspace(0.0, 1.0, n_thr)
+        throttles = np.linspace(0.0, 1.0, n_thr)
         thrust = np.zeros((n_vel, n_thr))
         rpm = np.zeros((n_vel,n_thr))
         
         # Loop through to calculate thrust and rpm values
         for i, v in enumerate(vel):
-            for j, t in enumerate(thr):
+            for j, t in enumerate(throttles):
                 
-                thrust[i][j] = self.calc_cruise_thrust(v, t)
-                rpm[i][j] = to_rpm(self._w)
+                try:
+                    thrust[i,j] = self.calc_cruise_thrust(v, t)
+                    rpm[i,j] = to_rpm(self._w)
+                except:
+                    thrust[i,j] = np.nan
+                    rpm[i,j] = np.nan
 
         # Initialize figure
         fig = plt.figure()
@@ -279,20 +283,20 @@ class PropulsionUnit:
 
         # Plot thrust
         ax0 = fig.add_subplot(1,2,1)
-        for i in range(n_vel):
-            ax0.plot(thr, thrust[i])
+        for i in range(n_thr)[::-1]:
+            ax0.plot(vel, thrust[:,i], label=str(round(throttles[i], 2)))
         ax0.set_title("Thrust")
         ax0.set_ylabel("Thrust [lbf]")
-        ax0.set_xlabel("Throttle Setting")
-        ax0.legend(list(vel), title="Airspeed [ft/s]")
+        ax0.set_xlabel("Airspeed [ft/s]")
+        ax0.legend(title="Throttle")
 
         # Plot rpm
         ax1 = fig.add_subplot(1,2,2)
-        for i in range(n_vel):
-            ax1.plot(thr, rpm[i])
+        for i in range(n_thr)[::-1]:
+            ax1.plot(vel, rpm[:,i])
         ax1.set_title("Prop Speed")
-        ax1.set_ylabel("Speed [rpm]")
-        ax1.set_xlabel("Throttle Setting")
+        ax1.set_ylabel("Rotational Speed [rpm]")
+        ax1.set_xlabel("Airspeed [ft/s]")
         plt.show()
 
 
