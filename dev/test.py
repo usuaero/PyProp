@@ -33,6 +33,7 @@ motor = pyprop.Motor(name="EFLITE Power 32", Kv=770, resistance=0.02, I_no_load=
 #motor = pyprop.create_component_from_database(component="motor", Kv=770)
 esc = pyprop.ESC(name="KDE", I_max=55, resistance=0.0, weight=2.12)
 batt = pyprop.Battery(name="Venom 16000mAh", capacity=16000.0, resistance=0.024, voltage=14.1, num_cells=4, weight=49.6, I_max=240)
+batt.write_to_database()
 #batt = pyprop.create_component_from_database(component="battery", capacity=[2000, 5000])
 #prop = pyprop.create_component_from_database(component="prop", diameter=[11, 16], pitch=[4, 9], manufacturer="APC")
 #prop = pyprop.create_component_from_database(component="prop", type="data", diameter=[11, 16], pitch=[4, 9], manufacturer="APC")

@@ -41,10 +41,13 @@ class Optimizer:
         goal_type : str
             Type of target required. Can be "thrust", "thrust_to_weight_ratio", or "power_to_weight_ratio".
             Note that thrust to weight ratio is dimensionless and power to weight ratio is given in 
-            Watts per pound.
+            Watts per pound. It should also be noted that "power_to_weight_ratio" specifies the ratio of the
+            propulsive power developed by the system at cruise speed to the weight, rather than the ratio
+            of the maximum electric power available to the weight. The latter is commonly specified in the
+            RC community but does not make much sense as an optimization target.
 
         goal_val : float
-            Target value.
+            Target value in whichever units are appropriate.
 
         airspeed : float
             The cruise velocity at which to evaluate each propulsion system in feet per second.

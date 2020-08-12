@@ -196,7 +196,6 @@ class PropulsionUnit:
         err_aprx = 1.0
         t_0 = 0.5
         T_0 = self.calc_cruise_thrust(v_cruise, t_0)
-        print(T_0)
         t_1 = t_0*1.1
         iterations = 0
         
@@ -221,7 +220,6 @@ class PropulsionUnit:
             t_0 = t_1
             T_0 = T_1
             t_1 = t_2
-            print(t_1)
 
             if iterations > max_iter:
                 raise ThrottleNotFoundError("not_converged", v_cruise, T_req)
@@ -327,7 +325,6 @@ class PropulsionUnit:
 
         # Determine the run time
         run_time = (self.batt.capacity/1000.0)/self.I_motor*60.0 # Gives run time in minutes, assuming nominal cell capacity and constant battery votlage
-        print(self.I_motor)
         if run_time < 0:
             raise InvalidRuntimeError(run_time)
         return run_time

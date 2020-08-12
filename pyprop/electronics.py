@@ -36,6 +36,9 @@ class Battery:
 
     I_max : float
         Maximum current draw of the battery in Amps. Defaults to infinity.
+
+    chemistry : str
+        Chemistry type of the battery.
     """
 
     def __init__(self, **kwargs):
@@ -49,6 +52,7 @@ class Battery:
         self.manufacturer = kwargs.get("manufacturer", "PyProp")
         self.I_max = kwargs.get("I_max", np.inf)
         self.n = kwargs.get("num_cells")
+        self.chemistry = kwargs.get("chemistry", "NULL")
 
 
     def __str__(self):
@@ -59,6 +63,49 @@ class Battery:
         string += "\n\tVoltage: {0} V".format(self.V0)
         string += "\n\tWeight: {0} oz".format(self.weight)
         return string
+
+
+    def write_to_database(self):
+        """Saves this component's information to the user database.
+        Doing this allows the component to be used in optimization
+        schemes that query the database.
+        
+        Plase note that due to limitations of SQLite, all spaces in the
+        name or manufacturer of this component will be replaced with
+        underscores.
+        """
+
+        # Locate database file
+        db_file = os.path.join(os.path.dirname(__file__), "user_components.db")
+
+        # Connect to database
+        connection = sql.connect(db_file)
+        cursor = connection.cursor()
+
+        # Check if the table has been created
+        try:
+            cursor.execute("select * from Batteries")
+        except:
+            cursor.execute("""create table Batteries (id INTEGER PRIMARY KEY, 
+                                                  Name VARCHAR(40), 
+                                                  manufacturer VARCHAR,
+                                                  Imax FLOAT, 
+                                                  Capacity FLOAT, 
+                                                  Weight FLOAT,
+                                                  Ri FLOAT,
+                                                  Volt FLOAT,
+                                                  Chem VARCHAR);""")
+
+        # Store component
+        command = """insert into Batteries (Name, manufacturer, Imax, Capacity, Weight, Ri, Volt, Chem)
+                  values ("{0}", "{1}", {2}, {3}, {4}, {5}, {6}, {7});""".format(self.name.replace(" ", "_"),
+                  self.manufacturer.replace(" ", "_"), self.I_max, self.capacity, self.weight, self.R,
+                  self.V0, self.chemistry)
+
+        cursor.execute(command)
+        cursor.close()
+        connection.commit()
+        connection.close()
 
 
 class ESC:
