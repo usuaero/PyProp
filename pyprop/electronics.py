@@ -72,7 +72,9 @@ class Battery:
         
         Plase note that due to limitations of SQLite, all spaces in the
         name or manufacturer of this component will be replaced with
-        underscores.
+        underscores. This function will also not check for duplicate
+        components. The database is stored in your Python site-packages
+        folder. The name is ```user_components.db```.
         """
 
         # Locate database file
@@ -146,6 +148,48 @@ class ESC:
         string += "\n\tWeight: {0} oz".format(self.weight)
         return string
 
+
+    def write_to_database(self):
+        """Saves this component's information to the user database.
+        Doing this allows the component to be used in optimization
+        schemes that query the database.
+        
+        Plase note that due to limitations of SQLite, all spaces in the
+        name or manufacturer of this component will be replaced with
+        underscores. This function will also not check for duplicate
+        components. The database is stored in your Python site-packages
+        folder. The name is ```user_components.db```.
+        """
+
+        # Locate database file
+        db_file = os.path.join(os.path.dirname(__file__), "user_components.db")
+
+        # Connect to database
+        connection = sql.connect(db_file)
+        cursor = connection.cursor()
+
+        # Check if the table has been created
+        try:
+            cursor.execute("select * from ESCs")
+        except:
+            cursor.execute("""create table ESCs (id INTEGER PRIMARY KEY, 
+                                                  Name VARCHAR(40), 
+                                                  manufacturer VARCHAR,
+                                                  Imax FLOAT, 
+                                                  Ipeak FLOAT, 
+                                                  Weight FLOAT,
+                                                  Ri FLOAT);""")
+
+        # Store component
+        command = """insert into ESCs (Name, manufacturer, Imax, Ipeak, Weight, Ri)
+                  values ("{0}", "{1}", {2}, {3}, {4}, {5});""".format(self.name.replace(" ", "_"),
+                  self.manufacturer.replace(" ", "_"), self.I_max, self.I_max, self.weight, self.R)
+
+        cursor.execute(command)
+        cursor.close()
+        connection.commit()
+        connection.close()
+
         
 class Motor:
     """Defines an electric motor.
@@ -202,3 +246,46 @@ class Motor:
         string += "\n\tKv: {0}".format(self.Kv)
         string += "\n\tWeight: {0} oz".format(self.weight)
         return string
+
+
+    def write_to_database(self):
+        """Saves this component's information to the user database.
+        Doing this allows the component to be used in optimization
+        schemes that query the database.
+        
+        Plase note that due to limitations of SQLite, all spaces in the
+        name or manufacturer of this component will be replaced with
+        underscores. This function will also not check for duplicate
+        components. The database is stored in your Python site-packages
+        folder. The name is ```user_components.db```.
+        """
+
+        # Locate database file
+        db_file = os.path.join(os.path.dirname(__file__), "user_components.db")
+
+        # Connect to database
+        connection = sql.connect(db_file)
+        cursor = connection.cursor()
+
+        # Check if the table has been created
+        try:
+            cursor.execute("select * from Motors")
+        except:
+            cursor.execute("""create table Motors (id INTEGER PRIMARY KEY, 
+                                                  Name VARCHAR(40), 
+                                                  manufacturer VARCHAR,
+                                                  kv FLOAT, 
+                                                  gear_ratio FLOAT default 1.0, 
+                                                  no_load_current FLOAT,
+                                                  weight FLOAT,
+                                                  resistance FLOAT);""")
+
+        # Store component
+        command = """insert into Motors (Name, manufacturer, kv, gear_ratio, no_load_current, weight,
+                  resistance) values ("{0}", "{1}", {2}, {3}, {4}, {5}, {6});""".format(self.name.replace(" ", "_"),
+                  self.manufacturer.replace(" ", "_"), self.Kv, self.Gr, self.I0, self.weight, self.R)
+
+        cursor.execute(command)
+        cursor.close()
+        connection.commit()
+        connection.close()
