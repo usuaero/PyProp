@@ -68,12 +68,16 @@ def create_component_from_database(**kwargs):
     capacity : float or list, optional
         Battery capacity in mAh.
 
-    num_cells : int or list, optional
-        Number of series cells in the battery. Note that batteries are stored
-        as single cells in the database, so all batteries are available with
-        an arbitrary number of cells (this may not reflect commercial
-        availability). If not specified, this defaults to a random integer
-        between 1 and 8.
+    cell_arrangement : tuple, optional
+        Number of series and parallel cells in the battery. Note that batteries are
+        stored as single cells in the database, so all batteries are available with
+        an arbitrary number of cells (this may not reflect commercial availability).
+        If not specified, this defaults to a random integer between 1 and 8 for both
+        series and parallel cells. The exception to this is for batteries added to the
+        database by the user. If the user has given a specific cell arrangement, then
+        only this cell arrangement can be used. For the purpose of specifying a range
+        of random cells, each tuple element can be a two element list specifying the
+        limits of the range.
 
     I_max : float or list, optional
         Maximum ESC current draw.
@@ -92,9 +96,6 @@ def create_component_from_database(**kwargs):
     Motor, Battery, ESC, DatabaseDataProp, or DatabaseFitProp
         The component specified, pulled from the database.
     """
-
-    # Locate database file
-    db_file = os.path.join(os.path.dirname(__file__), "components.db")
 
     # Set up params
     table_names = {
@@ -116,114 +117,122 @@ def create_component_from_database(**kwargs):
     Kv = kwargs.get("Kv", None)
     diameter = kwargs.get("diameter", None)
     pitch = kwargs.get("pitch", None)
-    num_cells = kwargs.get("num_cells", [1, 8])
-    if isinstance(num_cells, list):
-        num_cells = randint(num_cells[0], num_cells[1])
 
-    # Get database location and connection
-    with sql.connect(db_file) as conn:
-        db_cur = conn.cursor()
-
-        # Determine database table
-        if component_type == "prop":
-            if prop_type == "data":
-                table_name = "DataProps"
-            elif prop_type == "fit":
-                table_name = "Props"
-            else:
-                raise IOError("{0} is not a valid prop type.".format(prop_type))
+    # Determine database table
+    if component_type == "prop":
+        if prop_type == "data":
+            table_name = "DataProps"
+        elif prop_type == "fit":
+            table_name = "Props"
         else:
-            table_name = table_names[component_type]
+            raise IOError("{0} is not a valid prop type.".format(prop_type))
+    else:
+        table_name = table_names[component_type]
 
-        # Format command generically
-        command = "select * from {0}".format(table_name)
-        if name is not None:
-            if manufacturer is not None or dbid is not None:
-                raise ValueError("Too many {0} parameters specified.".format(component_type))
-            command = command+" where Name = '"+name+"'"
-        elif manufacturer is not None:
-            if dbid is not None:
-                raise ValueError("Too many {0} parameters specified.".format(component_type))
-            command = command+" where manufacturer = '"+manufacturer+"'"
-        elif dbid is not None:
-            command = command+" where id = "+str(dbid)
+    # Format command generically
+    command = "select * from {0}".format(table_name)
+    if name is not None:
+        if manufacturer is not None or dbid is not None:
+            raise ValueError("Too many {0} parameters specified.".format(component_type))
+        command = command+" where Name = '"+name+"'"
+    elif manufacturer is not None:
+        if dbid is not None:
+            raise ValueError("Too many {0} parameters specified.".format(component_type))
+        command = command+" where manufacturer = '"+manufacturer+"'"
+    elif dbid is not None:
+        command = command+" where id = "+str(dbid)
 
-        # Add component-specific commands
-        # Battery
-        if component_type == "battery":
-            if capacity is not None:
-                if isinstance(capacity, list):
-                    if "where" in command:
-                        command = command+" and Capacity between {0} and {1} order by RANDOM() limit 1".format(min(capacity), max(capacity))
-                    else:
-                        command = command+" where Capacity between {0} and {1} order by RANDOM() limit 1".format(min(capacity), max(capacity))
-                else:
-                    command = command+" order by abs({0}-Capacity)".format(capacity)
-
-        # ESC
-        elif component_type == "ESC":
-            if I_max is not None:
-                if isinstance(I_max, list):
-                    if "where" in command:
-                        command = command+" and I_motorax between {0} and {1} order by RANDOM() limit 1".format(min(I_max), max(I_max))
-                    else:
-                        command = command+" where I_motorax between {0} and {1} order by RANDOM() limit 1".format(min(I_max), max(I_max))
-                else:
-                    command = command+" order by abs({0}-I_motorax)".format(I_max)
-
-        # Motor
-        elif component_type == "motor":
-            if Kv is not None:
-                if isinstance(Kv, list):
-                    if "where" in command:
-                        command = command+" and kv between {0} and {1} order by RANDOM() limit 1".format(min(Kv), max(Kv))
-                    else:
-                        command = command+" where kv between {0} and {1} order by RANDOM() limit 1".format(min(Kv), max(Kv))
-                else:
-                    command = command+" order by abs({0}-kv)".format(Kv)
-
-        # Prop
-        elif component_type == "prop":
-            specific = False
-
-            # Range of diameters
-            if diameter is not None and isinstance(diameter, list):
+    # Add component-specific commands
+    # Battery
+    if component_type == "battery":
+        if capacity is not None:
+            if isinstance(capacity, list):
                 if "where" in command:
-                    command = command+" and Diameter between {0} and {1}".format(min(diameter), max(diameter))
+                    command = command+" and Capacity between {0} and {1} order by RANDOM() limit 1".format(min(capacity), max(capacity))
                 else:
-                    command = command+" where Diameter between {0} and {1}".format(min(diameter), max(diameter))
+                    command = command+" where Capacity between {0} and {1} order by RANDOM() limit 1".format(min(capacity), max(capacity))
+            else:
+                command = command+" order by abs({0}-Capacity)".format(capacity)
 
-            # Range of pitches
-            if pitch is not None and isinstance(pitch, list):
+    # ESC
+    elif component_type == "ESC":
+        if I_max is not None:
+            if isinstance(I_max, list):
                 if "where" in command:
-                    command = command+" and Pitch between {0} and {1}".format(min(pitch), max(pitch))
+                    command = command+" and I_motorax between {0} and {1} order by RANDOM() limit 1".format(min(I_max), max(I_max))
                 else:
-                    command = command+" where Pitch between {0} and {1}".format(min(pitch), max(pitch))
+                    command = command+" where I_motorax between {0} and {1} order by RANDOM() limit 1".format(min(I_max), max(I_max))
+            else:
+                command = command+" order by abs({0}-I_motorax)".format(I_max)
 
-            # Specific diameter
-            if diameter is not None and not isinstance(diameter, list):
+    # Motor
+    elif component_type == "motor":
+        if Kv is not None:
+            if isinstance(Kv, list):
+                if "where" in command:
+                    command = command+" and kv between {0} and {1} order by RANDOM() limit 1".format(min(Kv), max(Kv))
+                else:
+                    command = command+" where kv between {0} and {1} order by RANDOM() limit 1".format(min(Kv), max(Kv))
+            else:
+                command = command+" order by abs({0}-kv)".format(Kv)
+
+    # Prop
+    elif component_type == "prop":
+        specific = False
+
+        # Range of diameters
+        if diameter is not None and isinstance(diameter, list):
+            if "where" in command:
+                command = command+" and Diameter between {0} and {1}".format(min(diameter), max(diameter))
+            else:
+                command = command+" where Diameter between {0} and {1}".format(min(diameter), max(diameter))
+
+        # Range of pitches
+        if pitch is not None and isinstance(pitch, list):
+            if "where" in command:
+                command = command+" and Pitch between {0} and {1}".format(min(pitch), max(pitch))
+            else:
+                command = command+" where Pitch between {0} and {1}".format(min(pitch), max(pitch))
+
+        # Specific diameter
+        if diameter is not None and not isinstance(diameter, list):
+            specific = True
+            command = command+" order by abs({0}-Diameter)".format(diameter)
+
+        # Specific pitch
+        if pitch is not None and not isinstance(pitch, list):
+            if specific:
+                raise IOError("Exact values for both pitch and diameter may not be given when selecting a propeller from the database.")
+            else:
                 specific = True
-                command = command+" order by abs({0}-Diameter)".format(diameter)
+                command = command+" order by abs({0}-Pitch)".format(pitch)
 
-            # Specific pitch
-            if pitch is not None and not isinstance(pitch, list):
-                if specific:
-                    raise IOError("Exact values for both pitch and diameter may not be given when selecting a propeller from the database.")
-                else:
-                    specific = True
-                    command = command+" order by abs({0}-Pitch)".format(pitch)
-
-            if not specific:
-                command = command+" order by RANDOM() limit 1"
-
-        if "order" not in command:
-            # Get in random order
+        if not specific:
             command = command+" order by RANDOM() limit 1"
 
-        # Get record
-        db_cur.execute(command)
-        try:
+    if "order" not in command:
+        # Get in random order
+        command = command+" order by RANDOM() limit 1"
+
+    # Try to pull record from stock database
+    stock_db_file = os.path.join(os.path.dirname(__file__), "components.db")
+    try:
+        with sql.connect(stock_db_file) as conn:
+            db_cur = conn.cursor()
+
+            # Get record
+            db_cur.execute(command)
             record = np.asarray(db_cur.fetchall())[0]
+
+    except: # Pull from user database
+        try:
+            user_db_file = os.path.join(os.path.dirname(__file__), "user_components.db")
+            with sql.connect(user_db_file) as conn:
+                db_cur = conn.cursor()
+
+                # Get record
+                db_cur.execute(command)
+                record = np.asarray(db_cur.fetchall())[0]
         except IndexError:
             raise DatabaseRecordNotFoundError(command)
 
@@ -238,14 +247,66 @@ def create_component_from_database(**kwargs):
                     weight=float(record[7]))
 
     elif component_type == "battery":
+
+        # Get battery cell arrangement
+        record_S = record[9]
+        record_P = record[10]
+        cell_arrangement = kwargs.get("cell_arrangement", None)
+
+        # Check for no user or database specification
+        if cell_arrangement is None and record_S is None and record_P is None:
+            S = randint(1, 8)
+            P = randint(1, 8)
+
+        # Check for database specification without user limits
+        elif cell_arrangement is None and record_S is not None and record_P is not None:
+            S = record_S
+            P = record_P
+
+        # Check for no database specification
+        elif record_S is None and record_P is None:
+
+            # Define limits if not given
+            if cell_arrangement is None:
+                cell_arrangement = ([1, 8], [1, 8])
+
+            if isinstance(cell_arrangement[0], list):
+                S = randint(cell_arrangement[0][0], cell_arrangement[0][1])
+            else:
+                S = cell_arrangement[0]
+            if isinstance(cell_arrangement[1], list):
+                P = randint(cell_arrangement[1][0], cell_arrangement[1][1])
+            else:
+                P = cell_arrangement[1]
+
+        # Check for database specification and user limits
+        elif cell_arrangement is not None and record_S is not None and record_P is not None:
+
+            # Check database S number lines up with what the user has asked for
+            if isinstance(cell_arrangement[0], list) and record_S >= cell_arrangement[0][0] and record_S <= cell_arrangement[0][1]:
+                S = record_S
+            elif isinstance(cell_arrangement[0], int) and record_S == cell_arrangement[0]:
+                S = record_S
+            else:
+                raise DatabaseRecordNotFoundError(command)
+
+            # Check database P number lines up with what the user has asked for
+            if isinstance(cell_arrangement[1], list) and record_P >= cell_arrangement[1][0] and record_P <= cell_arrangement[1][1]:
+                P = record_P
+            elif isinstance(cell_arrangement[1], int) and record_P == cell_arrangement[1]:
+                P = record_P
+            else:
+                raise DatabaseRecordNotFoundError(command)
+
+        # Initialize
         obj = Battery(name=record[1],
                       manufacturer=record[2],
-                      num_cells=num_cells,
-                      capacity=float(record[4]),
-                      voltage=float(record[7])*num_cells,
-                      resistance=float(record[6])*num_cells,
-                      I_max=float(record[3]),
-                      weight=float(record[5])*num_cells)
+                      cell_arrangement=(S, P),
+                      capacity=float(record[4])*P,
+                      voltage=float(record[7])*S,
+                      resistance=float(record[6])*S/P,
+                      I_max=float(record[3])*P,
+                      weight=float(record[5])*S*P)
 
     elif component_type == "ESC":
         obj = ESC(name=record[1],

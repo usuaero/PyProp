@@ -19,9 +19,6 @@ class Battery:
     manufacturer : str, optional
         Manufacturer of the battery.
 
-    num_cells : int
-        Number of cells in the battery.
-
     capacity : float, optional
         Capacity of the battery in mAh.
 
@@ -39,6 +36,11 @@ class Battery:
 
     chemistry : str
         Chemistry type of the battery.
+
+    cell_arrangement : tuple
+        The number of series and parallel cells in the battery. The first
+        element should be the number of series cells and the second element
+        should be the number of parallel cells. Defaults to (0, 0).
     """
 
     def __init__(self, **kwargs):
@@ -51,15 +53,15 @@ class Battery:
         self.name = kwargs.get("name", "Generic Battery")
         self.manufacturer = kwargs.get("manufacturer", "PyProp")
         self.I_max = kwargs.get("I_max", np.inf)
-        self.n = kwargs.get("num_cells")
         self.chemistry = kwargs.get("chemistry", "NULL")
+        self.S, self.P = kwargs.get("cell_arrangement", (0, 0))
 
 
     def __str__(self):
         string = "Battery: {0}".format(self.name)
         string += "\n\tManufacturer: {0}".format(self.manufacturer)
         string += "\n\tCapacity: {0} mAh".format(self.capacity)
-        string += "\n\tNum Cells: {0}".format(self.n)
+        string += "\n\tCells: {0}S{1}P".format(self.S, self.P)
         string += "\n\tVoltage: {0} V".format(self.V0)
         string += "\n\tWeight: {0} oz".format(self.weight)
         return string
@@ -70,10 +72,8 @@ class Battery:
         Doing this allows the component to be used in optimization
         schemes that query the database.
         
-        Plase note that due to limitations of SQLite, all spaces in the
-        name or manufacturer of this component will be replaced with
-        underscores. This function will also not check for duplicate
-        components. The database is stored in your Python site-packages
+        This function will replace duplicate components (i.e.
+        same name). The database is stored in your Python site-packages
         folder. The name is ```user_components.db```.
         """
 
@@ -96,13 +96,18 @@ class Battery:
                                                   Weight FLOAT,
                                                   Ri FLOAT,
                                                   Volt FLOAT,
-                                                  Chem VARCHAR);""")
+                                                  Chem VARCHAR,
+                                                  S INTEGER default 0,
+                                                  P INTEGER default 0);""")
+
+        # Check for duplicate
+        cursor.execute("delete from Batteries where Name = '{0}';".format(self.name))
 
         # Store component
-        command = """insert into Batteries (Name, manufacturer, Imax, Capacity, Weight, Ri, Volt, Chem)
-                  values ("{0}", "{1}", {2}, {3}, {4}, {5}, {6}, {7});""".format(self.name.replace(" ", "_"),
-                  self.manufacturer.replace(" ", "_"), self.I_max, self.capacity, self.weight, self.R,
-                  self.V0, self.chemistry)
+        command = """insert into Batteries (Name, manufacturer, Imax, Capacity, Weight, Ri, Volt, Chem, S, P)
+                  values ("{0}", "{1}", {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9});""".format(self.name,
+                  self.manufacturer.replace(" ", "_"), self.I_max/self.P, self.capacity/self.P, self.weight/(self.S*self.P),
+                  self.R*self.P/self.S, self.V0/self.S, self.chemistry, self.S, self.P)
 
         cursor.execute(command)
         cursor.close()
@@ -154,10 +159,8 @@ class ESC:
         Doing this allows the component to be used in optimization
         schemes that query the database.
         
-        Plase note that due to limitations of SQLite, all spaces in the
-        name or manufacturer of this component will be replaced with
-        underscores. This function will also not check for duplicate
-        components. The database is stored in your Python site-packages
+        This function will replace duplicate components 
+        (i.e. same name). The database is stored in your Python site-packages
         folder. The name is ```user_components.db```.
         """
 
@@ -180,9 +183,12 @@ class ESC:
                                                   Weight FLOAT,
                                                   Ri FLOAT);""")
 
+        # Check for duplicate
+        cursor.execute("delete from ESCs where Name = '{0}';".format(self.name))
+
         # Store component
         command = """insert into ESCs (Name, manufacturer, Imax, Ipeak, Weight, Ri)
-                  values ("{0}", "{1}", {2}, {3}, {4}, {5});""".format(self.name.replace(" ", "_"),
+                  values ("{0}", "{1}", {2}, {3}, {4}, {5});""".format(self.name,
                   self.manufacturer.replace(" ", "_"), self.I_max, self.I_max, self.weight, self.R)
 
         cursor.execute(command)
@@ -253,10 +259,8 @@ class Motor:
         Doing this allows the component to be used in optimization
         schemes that query the database.
         
-        Plase note that due to limitations of SQLite, all spaces in the
-        name or manufacturer of this component will be replaced with
-        underscores. This function will also not check for duplicate
-        components. The database is stored in your Python site-packages
+        This function will replace duplicate components
+        (i.e. same name). The database is stored in your Python site-packages
         folder. The name is ```user_components.db```.
         """
 
@@ -280,9 +284,12 @@ class Motor:
                                                   weight FLOAT,
                                                   resistance FLOAT);""")
 
+        # Check for duplicate
+        cursor.execute("delete from Motors where Name = '{0}';".format(self.name))
+
         # Store component
         command = """insert into Motors (Name, manufacturer, kv, gear_ratio, no_load_current, weight,
-                  resistance) values ("{0}", "{1}", {2}, {3}, {4}, {5}, {6});""".format(self.name.replace(" ", "_"),
+                  resistance) values ("{0}", "{1}", {2}, {3}, {4}, {5}, {6});""".format(self.name,
                   self.manufacturer.replace(" ", "_"), self.Kv, self.Gr, self.I0, self.weight, self.R)
 
         cursor.execute(command)
