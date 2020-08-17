@@ -90,6 +90,8 @@ t = unit.calc_batt_life(20.0, 0.5*T)
 print("{0} min flight time at half of maximum static thrust.".format(t))
 ```
 
+The user-defined battery, motor, and ESC can be stored in a database for later use. This is done using the write_to_database() method of each component. These components will then be available for use by the optimizers.
+
 In the above example, a custom "functional"-type airfoil is used. For mor information on how to use these, see the documentation for [AirfoilDatabase](airfoildatabase.readthedocs.io/).
 
 ## Units
