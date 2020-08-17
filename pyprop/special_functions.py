@@ -208,33 +208,56 @@ def create_component_from_database(**kwargs):
                 command = command+" order by abs({0}-Pitch)".format(pitch)
 
         if not specific:
-            command = command+" order by RANDOM() limit 1"
+            command = command+" order by RANDOM()"
 
     if "order" not in command:
         # Get in random order
-        command = command+" order by RANDOM() limit 1"
+        command = command+" order by RANDOM()"
 
-    # Try to pull record from stock database
+    # Pull record from stock database
     stock_db_file = os.path.join(os.path.dirname(__file__), "components.db")
+    with sql.connect(stock_db_file) as conn:
+        db_cur = conn.cursor()
+
+        # Get record
+        db_cur.execute(command)
+        stock_fetch = np.asarray(db_cur.fetchall())
+
+    # Pull record from user database
     try:
-        with sql.connect(stock_db_file) as conn:
+        user_db_file = os.path.join(os.path.dirname(__file__), "user_components.db")
+        with sql.connect(user_db_file) as conn:
             db_cur = conn.cursor()
 
             # Get record
             db_cur.execute(command)
-            record = np.asarray(db_cur.fetchall())[0]
+            user_fetch = np.asarray(db_cur.fetchall())
+    except:
+        user_fetch = None
 
-    except: # Pull from user database
-        try:
-            user_db_file = os.path.join(os.path.dirname(__file__), "user_components.db")
-            with sql.connect(user_db_file) as conn:
-                db_cur = conn.cursor()
+    # Pick between user and stock components
+    try:
 
-                # Get record
-                db_cur.execute(command)
-                record = np.asarray(db_cur.fetchall())[0]
-        except IndexError:
-            raise DatabaseRecordNotFoundError(command)
+        # User database fetch failed
+        if user_fetch is None:
+            record = stock_fetch[0]
+
+        # Randomly choose between the two
+        else:
+            num_stock = len(stock_fetch)
+            num_user = len(user_fetch)
+            choose = randint(1, num_stock+num_user)
+
+            # Stock component
+            if choose <= num_stock:
+                record = stock_fetch[choose-1]
+
+            # User component
+            else:
+                record = user_fetch[choose-num_stock-1]
+        
+    except IndexError:
+        raise DatabaseRecordNotFoundError(command)
 
     # Initialize object
     if component_type == "motor":

@@ -321,12 +321,12 @@ class DatabaseDataProp(BaseProp):
         rpm = to_rpm(w)
         J = self.get_advance_ratio(w, V)
 
-        C_T = interp.griddata(self._data[:,:2], self._data[:,3], np.array([[rpm, J]]), method='linear').item()/(2.0*np.pi)
+        C_l = interp.griddata(self._data[:,:2], self._data[:,3], np.array([[rpm, J]]), method='linear').item()/(2.0*np.pi)
 
-        if np.isnan(C_T):
+        if np.isnan(C_l):
             raise PropDataBoundsError(self.name, rpm, J)
 
-        return C_T
+        return C_l
         
 
     def get_thrust_coef(self, w, V):
@@ -350,12 +350,12 @@ class DatabaseDataProp(BaseProp):
         rpm = to_rpm(w)
         J = self.get_advance_ratio(w, V)
 
-        C_l = interp.griddata(self._data[:,:2], self._data[:,2], np.array([[rpm, J]]), method='linear').item()
+        C_T = interp.griddata(self._data[:,:2], self._data[:,2], np.array([[rpm, J]]), method='linear').item()
 
-        if np.isnan(C_l):
+        if np.isnan(C_T):
             raise PropDataBoundsError(self.name, rpm, J)
         
-        return C_l
+        return C_T
 
 
 class BladeElementProp(BaseProp):

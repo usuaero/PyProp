@@ -116,7 +116,7 @@ class PropulsionUnit:
 
         # Initial guess
         w_0 = 950
-        w_max = self.motor.Kv*self.batt.V0*throttle*(2*np.pi/60) # Theoretically the upper limit
+        #w_max = self.motor.Kv*self.batt.V0*throttle*(2*np.pi/60) # Theoretically the upper limit
         Cl_prop = self.prop.get_torque_coef(w_0, v_cruise)
         f_0 = self.calc_motor_torque(throttle, to_rpm(w_0))-Cl_prop*self._rho*(w_0/(2*np.pi))**2*(self.prop.diameter/12)**5
         w_1 = w_0 * 1.1
@@ -147,7 +147,7 @@ class PropulsionUnit:
 
             if iterations > max_iter:
                 raise TorquesNotMatchedError(v_cruise, throttle)
-    
+
         if False: #iterations >= max_iter:
             w = np.linspace(0,30000,10000)
             T_motor = np.zeros(10000)
@@ -315,10 +315,13 @@ class PropulsionUnit:
         float
             Flight time in minutes
 
+        float
+            Corresponding throttle setting
+
         """
 
         # Calculate required throttle
-        self.calc_cruise_throttle(v_cruise, T_req)
+        throttle = self.calc_cruise_throttle(v_cruise, T_req)
 
         # Check
         self._check_current_draw()
@@ -327,7 +330,7 @@ class PropulsionUnit:
         run_time = (self.batt.capacity/1000.0)/self.I_motor*60.0 # Gives run time in minutes, assuming nominal cell capacity and constant battery votlage
         if run_time < 0:
             raise InvalidRuntimeError(run_time)
-        return run_time
+        return run_time, throttle
 
 
     def get_weight(self):

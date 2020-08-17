@@ -16,7 +16,7 @@ import numpy as np
 from .electronics import Battery, Motor, ESC
 from .propulsion_unit import PropulsionUnit
 from .propellers import DatabaseFitProp, DatabaseDataProp, BladeElementProp
-from .exceptions import MaxCurrentExceededError, TorquesNotMatchedError, ThrottleNotFoundError, InvalidRuntimeError
+from .exceptions import MaxCurrentExceededError, TorquesNotMatchedError, ThrottleNotFoundError, InvalidRuntimeError, PropDataBoundsError
 from .special_functions import create_component_from_database
 
 class Optimizer:
@@ -78,55 +78,21 @@ class Optimizer:
             terminal. Selecting a design will also highlight that design in each of the 6 plots, so that general
             patterns in the design space can be opserved.
 
-        prop_constraints : dict, optional
-            This can be used to constrain the propellers to certain parameters. Only valid for "fit" type propeller.
-            The parameters that can be specified are:
+        prop_kwargs : dict, optional
+            Kwargs to pass to pyprop.create_component_from_database() when generating a prop. See the docstring
+            for pyprop.create_component_from_database() for more information.
 
-                name
-                manufacturer
-                pitch
-                diameter
-                prop_type
+        motor_kwargs : dict, optional
+            Kwargs to pass to pyprop.create_component_from_database() when generating a motor. See the docstring
+            for pyprop.create_component_from_database() for more information.
 
-            "name" will specify an exact prop in the database. This may not be specified along with any other parameters.
-            "Manufacturer" will limit the search to props from a given manufacturer. "pitch" and "diameter" may be given
-            as a specific value, in which case the closest value will be selected, or as a range. A range is given as a 
-            two-element list where the elements are the upper and lower limits. Note that two specific values may not be 
-            given (see the docstrings for pyprop.create_component_from_database()), but a specific value and a range may
-            be specified. The constraint dictionary may then look like
+        battery_kwargs : dict, optional
+            Kwargs to pass to pyprop.create_component_from_database() when generating a battery. See the docstring
+            for pyprop.create_component_from_database() for more information.
 
-                {
-                    "manufacturer" : "APC",
-                    "pitch" : 6,
-                    "diameter" : [8, 16],
-                    "prop_type" : "data"
-                }
-            
-            or
-
-                {
-                    "name" : "apc_12x6",
-                    "prop_type" : "fit"
-                }
-
-            These names should be given here exactly as they appear in the database. Defaults to allowing
-            any propeller in the database.
-
-            "prop_type" determines which type of prop model is to be used. Can be "data", "fit", or "BET". "data" props
-            are defined by tabulated experimental data for COTS parts. "fit" props are defined by polynomial fits of the 
-            experimental data. "BET" props are defined by blade element theory, a numerical model for determining
-            prop behavior. **"fit" props are not guaranteed to be realistic. It is recommended these not be used.**
-            Defaults to "data".
-
-        motor_constraints : dict, optional
-            Same as "prop_constraints", except that the allowable parameters are "name", "manufacturer", and "Kv".
-
-        battery_constraints : dict, optional
-            Same as "prop_constraints", except that the allowable parameters are "name", "manufacturer", "num_cells",
-            and "capacity".
-
-        esc_constraints : dict, optional
-            Same as "prop_constraints", except that the allowable parameters are "name", "manufacturer", and "I_max".
+        esc_kwargs : dict, optional
+            Kwargs to pass to pyprop.create_component_from_database() when generating an ESC. See the docstring
+            for pyprop.create_component_from_database() for more information.
 
         Returns
         -------
@@ -166,15 +132,15 @@ class Optimizer:
         print("Optimization constrained as follows:")
         for component in ["prop", "motor", "esc", "battery"]:
             print(component.title())
-            print(json.dumps(kwargs.get("{0}_constraints".format(component), {}), indent=4))
-        prop_constraints = kwargs.get("prop_constraints", {})
-        motor_constraints = kwargs.get("motor_constraints", {})
-        battery_constraints = kwargs.get("battery_constraints", {})
-        esc_constraints = kwargs.get("esc_constraints", {})
+            print(json.dumps(kwargs.get("{0}_kwargs".format(component), {}), indent=4))
+        prop_kwargs = kwargs.get("prop_kwargs", {})
+        motor_kwargs = kwargs.get("motor_kwargs", {})
+        battery_kwargs = kwargs.get("battery_kwargs", {})
+        esc_kwargs = kwargs.get("esc_kwargs", {})
 
         # Distribute work
         with mp.Pool(processes=N_proc_max) as pool:
-            args = [(V_req, goal_val, h, goal_code, W_frame, prop_constraints, motor_constraints, battery_constraints, esc_constraints) for i in range(N_units)]
+            args = [(V_req, goal_val, h, goal_code, W_frame, prop_kwargs, motor_kwargs, battery_kwargs, esc_kwargs) for i in range(N_units)]
             data = pool.map(self._evaluate_random_unit, args)
 
         # Package results
@@ -222,7 +188,6 @@ class Optimizer:
                 # Handles when the user picks a plotted point in the design space. Highlights that point and plots that unit's thrust curves.
 
                 # Get plot info
-                artist = event.artist
                 fig = plt.figure(plt.get_fignums()[0])
                 ax = fig.axes
 
@@ -351,32 +316,32 @@ class Optimizer:
         h = args[2]
         goal_code = args[3]
         W_frame = args[4]
-        prop_constraints = args[5]
-        motor_constraints = args[6]
-        battery_constraints = args[7]
-        esc_constraints = args[8]
+        prop_kwargs = args[5]
+        motor_kwargs = args[6]
+        battery_kwargs = args[7]
+        esc_kwargs = args[8]
 
         # Loop through random components until we get a valid one
         t_flight_cruise = None
         while t_flight_cruise is None or math.isnan(t_flight_cruise):
 
             # Fetch prop data
-            prop_model_type = prop_constraints.get("prop_type", "data")
+            prop_model_type = prop_kwargs.get("prop_type", "data")
             if prop_model_type == "data" or prop_model_type == "fit":
-                prop = create_component_from_database(component="prop", **prop_constraints)
+                prop = create_component_from_database(component="prop", **prop_kwargs)
             elif prop_model_type == "BET":
                 raise RuntimeError("BET prop model is not currently available for optimization.")
             else:
                 raise IOError("{0} is not a valid prop model type.".format(prop_model_type))
 
             #Fetch motor data
-            motor = create_component_from_database(component="motor", **motor_constraints)
+            motor = create_component_from_database(component="motor", **motor_kwargs)
 
             #Fetch ESC data
-            esc = create_component_from_database(component="ESC", **esc_constraints)
+            esc = create_component_from_database(component="ESC", **esc_kwargs)
 
             #Fetch battery data
-            batt = create_component_from_database(component="battery", **battery_constraints)
+            batt = create_component_from_database(component="battery", **battery_kwargs)
 
             # Determine required thrust
             curr_unit = PropulsionUnit(prop, motor, batt, esc, h)
@@ -387,14 +352,11 @@ class Optimizer:
             else:
                 T_req = self._get_thrust_from_power_ratio(goal_val, curr_unit.get_weight()+W_frame, V_req)
 
-            # Determine performance
+            # Determine cruise performance
             try:
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    T_max = curr_unit.calc_cruise_thrust(V_req, 1.0)
-                    power_to_weight_max = curr_unit.get_electric_power()/(curr_unit.get_weight()+W_frame)
-                    t_flight_cruise = curr_unit.calc_batt_life(V_req, T_req)
-                    thr_cruise = curr_unit.calc_cruise_throttle(V_req, T_req)
+                    t_flight_cruise, thr_cruise = curr_unit.calc_batt_life(V_req, T_req)
                     P_e_cruise = curr_unit.get_electric_power()
                     P_p_cruise = V_req*T_req
                     eff = P_p_cruise/(P_e_cruise*0.7375621494575464)
@@ -410,6 +372,17 @@ class Optimizer:
                 continue
             except InvalidRuntimeError:
                 continue
+            except PropDataBoundsError:
+                continue
+
+            # Determine max performance
+            try:
+                with warnings.catch_warnings():
+                    T_max = curr_unit.calc_cruise_thrust(V_req, 1.0)
+                    power_to_weight_max = curr_unit.get_electric_power()/(curr_unit.get_weight()+W_frame)
+            except:
+                power_to_weight_max = np.nan
+                T_max = np.nan
 
         # Return params
         return t_flight_cruise, thr_cruise, curr_unit, P_e_cruise, P_p_cruise, eff, T_req, T_max, power_to_weight_max
