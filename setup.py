@@ -5,7 +5,7 @@ import os
 import sys
 
 setup(name = 'PyProp',
-    version = '1.0.0',
+    version = '1.1.0',
     description = "PyProp: The ultimate electric propulsion modeling and optimization module.",
     url = 'https://github.com/usuaero/PyProp',
     author = 'usuaero',
