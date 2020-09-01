@@ -19,7 +19,7 @@ from .standard_atmosphere import StandardAtmosphere
 from .exceptions import PropDataBoundsError
 
 class BaseProp:
-    """Defines a propeller."""
+    """Defines a propeller. It's super cool!"""
 
     def __init__(self):
         self.name = None
