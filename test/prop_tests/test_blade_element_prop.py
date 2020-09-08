@@ -1,4 +1,4 @@
-"""Tests the BladeElementProp class."""
+"""Tests the BladeElementProp class. Does this work?"""
 
 import numpy as np
 import pyprop
