@@ -935,8 +935,12 @@ class BladeElementProp(BaseProp):
         # Make plot
         plt.figure()
         plt.plot(self._zeta, np.degrees(self._beta), label="Beta")
-        plt.plot(self._zeta, np.degrees(self._eps_ind), label="E_ind")
-        plt.plot(self._zeta, np.degrees(self._eps_inf), label="E_inf")
+        if plt.rcParams["text.usetex"]:
+            plt.plot(self._zeta, np.degrees(self._eps_ind), label="$E_{ind}$")
+            plt.plot(self._zeta, np.degrees(self._eps_inf), label="$E_{inf}$")
+        else:
+            plt.plot(self._zeta, np.degrees(self._eps_ind), label="E_ind")
+            plt.plot(self._zeta, np.degrees(self._eps_inf), label="E_inf")
         plt.plot(self._zeta, np.degrees(self._alpha_B), label="alpha")
         plt.xlabel("Zeta")
         plt.ylabel("Angle [deg]")
