@@ -155,6 +155,11 @@ class BaseProp:
         plt.show()
 
 
+    def get_diameter(self):
+        """Returns the prop diameter in feet."""
+        return self.diameter/12.0
+
+
     @abstractmethod
     def get_torque_coef(self, w, V):
         pass
@@ -768,6 +773,11 @@ class BladeElementProp(BaseProp):
         j[np.where(j<0)] = 0 # Not allowed to go outside the array
         d = (interp_spans-sample_spans[j])/(sample_spans[j+1]-sample_spans[j])
         return (1-d)*coefs[i,j]+d*coefs[i,j+1]
+
+
+    def get_diameter(self):
+        """Returns the prop diameter in feet."""
+        return self.diameter
 
 
     def get_torque_coef(self, w, V):

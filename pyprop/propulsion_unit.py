@@ -114,11 +114,14 @@ class PropulsionUnit:
         err_max = 1e-10
         err_aprx = 1.0
 
+        # Get prop diameter
+        d = self.prop.get_diameter()
+
         # Initial guess
         w_0 = 950
         #w_max = self.motor.Kv*self.batt.V0*throttle*(2*np.pi/60) # Theoretically the upper limit
         Cl_prop = self.prop.get_torque_coef(w_0, v_cruise)
-        f_0 = self.calc_motor_torque(throttle, to_rpm(w_0))-Cl_prop*self._rho*(w_0/(2*np.pi))**2*(self.prop.diameter/12)**5
+        f_0 = self.calc_motor_torque(throttle, to_rpm(w_0))-Cl_prop*self._rho*(w_0/(2*np.pi))**2*d**5
         w_1 = w_0 * 1.1
         iterations = 0
         
@@ -129,7 +132,7 @@ class PropulsionUnit:
             iterations = iterations + 1
             Cl_prop = self.prop.get_torque_coef(w_1, v_cruise)
             T_motor = self.calc_motor_torque(throttle, to_rpm(w_1))
-            T_prop = Cl_prop*self._rho*(w_1/(2*np.pi))**2*(self.prop.diameter/12)**5
+            T_prop = Cl_prop*self._rho*(w_1/(2*np.pi))**2*d**5
             f_1 = T_motor - T_prop
             
             w_2 = w_1 - (f_1*(w_0 - w_1))/(f_0 - f_1)
@@ -156,7 +159,7 @@ class PropulsionUnit:
                 self.prop.w = w_i
                 Cl_prop = self.prop.get_torque_coef(w_i, v_cruise)
                 T_motor[i] = self.calc_motor_torque(throttle, to_rpm(w_i))
-                T_prop[i] = Cl_prop*self._rho*(w_i/(2*np.pi))**2*(self.prop.diameter/12)**5
+                T_prop[i] = Cl_prop*self._rho*(w_i/(2*np.pi))**2*d**5
             plt.plot(w,T_motor)
             plt.plot(w,T_prop)
             plt.title("Torques vs Angular Velocity")
@@ -167,7 +170,7 @@ class PropulsionUnit:
         self._w = w_2
         self.calc_motor_torque(throttle, to_rpm(w_2)) # To make sure member variables are fully updated
 
-        return Ct*self._rho*(w_2/(2*np.pi))**2*(self.prop.diameter/12)**4
+        return Ct*self._rho*(w_2/(2*np.pi))**2*d**4
     
     
     def calc_cruise_throttle(self, v_cruise, T_req, max_iter=1000):
